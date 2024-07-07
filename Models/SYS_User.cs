@@ -6,7 +6,7 @@ public class SYS_User
     public int Id { get; set; }
 
     [StringLength(50)]
-    public string UserId { get; set; }
+    public string Username { get; set; }
 
     [StringLength(50)]
     public string? DisplayName { get; set; }

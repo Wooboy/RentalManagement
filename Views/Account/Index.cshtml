@@ -1,0 +1,48 @@
+@using RentalManagement.Models
+@model IEnumerable<SYS_User>
+
+<div>
+    <button class="py-2 px-4 mhejausoals pdskdmsdnjw gap-2 justify-center mb-3 rounded leading-5 text-gray-100 bg-indigo-500 border border-indigo-500 hover:text-white hover:bg-indigo-600 hover:ring-0 hover:border-indigo-600 focus:bg-indigo-600 focus:border-indigo-600 focus:outline-none focus:ring-0">
+        新增
+    </button>
+</div>
+<div>
+
+    <table class="table-bordered w-full text-start text-gray-500 dark:text-gray-400">
+        <thead>
+            <tr class="bg-gray-200 dark:bg-gray-900 dark:bg-opacity-40">
+                <th class="px-4 py-3">ID</th>
+                <th class="px-4 py-3">資產</th>
+                <th class="px-4 py-3">地址</th>
+                <th class="px-4 py-3">動作</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Count() == 0)
+            {
+                <tr>
+                    <td colspan="4">沒有資料</td>
+                </tr>
+            }
+            else
+            {
+                foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@Html.DisplayFor(modelItem => item.Id)</td>
+                        <td>@Html.DisplayFor(modelItem => item.Username)</td>
+                        <td>@Html.DisplayFor(modelItem => item.DisplayName)</td>
+                        <td>
+                            <a asp-controller="Property"
+                               asp-action="Detail"
+                               asp-route-id="@item.Id"
+                               class="py-2 px-4 mhejausoals pdskdmsdnjw gap-2 justify-center mb-3 rounded leading-5 text-gray-100 bg-indigo-500 border border-indigo-500 hover:text-white hover:bg-indigo-600 hover:ring-0 hover:border-indigo-600 focus:bg-indigo-600 focus:border-indigo-600 focus:outline-none focus:ring-0">
+                            編輯
+                            </a>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>

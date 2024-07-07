@@ -1,6 +1,6 @@
-using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using RentalManagement.ViewModels;
+using System.Diagnostics;
 
 namespace RentalManagement.Controllers;
 

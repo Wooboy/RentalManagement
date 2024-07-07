@@ -1,19 +1,52 @@
-﻿<!DOCTYPE html>
+﻿@using System.Security.Claims
+<!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"]</title>
     <link rel="stylesheet" href="~/css/style.css" asp-append-version="true" />
 </head>
+
 <body>
     <header>
+        <ul class="navbar-nav ml-auto">
+            @if (User.Identity.IsAuthenticated)
+            {
+                <ul class="navbar-nav flex-grow-1 nav-right">
+                    <li class="nav-item">
+                        <span>
+                            @{
+                                var uname = User.Claims.ToList().First(x => x.Type.Equals(ClaimTypes.Name)).Value.ToString();
+                            }
+                            @uname
+                        </span>
+                        <form asp-area="" asp-controller="Account" asp-action="Logout" method="post" id="logoutForm" class="form-inline">
+                            <button type="submit" class="nav-link btn btn-link text-dark">Logout</button>
+                        </form>
+                    </li>
+                </ul>
+            }
+            else
+            {
+                <ul class="navbar-nav flex-grow-1 nav-right">
+                    <li class="nav-item">
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Account" asp-action="Login">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-dark" asp-area="" asp-controller="Account" asp-action="Register">Register</a>
+                    </li>
+                </ul>
+            }
+        </ul>
     </header>
     <div class="container">
-            @RenderBody()
+        @RenderBody()
     </div>
     <footer class="">
     </footer>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
+
 </html>
