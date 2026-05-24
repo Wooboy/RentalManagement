@@ -427,7 +427,7 @@ const saveBill = async () => {
   error.value = validate()
   if (error.value) return
   try {
-    await api.post('/electricity/bills', {
+    const { data } = await api.post('/electricity/bills', {
       contractId: form.value.contractId || relatedContracts.value[0]?.id || form.value.allocations[0]?.contractId || 0,
       ruleType: calcMode.value,
       billingStartUtc: new Date(`${form.value.billingStart}T00:00:00Z`).toISOString(),
@@ -437,7 +437,13 @@ const saveBill = async () => {
       unitPrice: aggregatedUnits.value === 0 ? 0 : aggregatedAmount.value / aggregatedUnits.value,
       allocations: form.value.allocations.map((x: any) => ({ tenantId: x.tenantId, tenantUnits: x.tenantUnits, occupantCount: x.occupantCount, occupancyDays: x.occupancyDays }))
     })
-    notice.value = '帳單儲存成功'
+    const billId = Number(data?.billId || 0)
+    if (billId > 0) {
+      await api.post(`/electricity/bills/${billId}/create-charges`, null, { params: { mode: 'merged' } })
+      notice.value = `帳單儲存成功，並已彙總轉入應收（帳單#${billId}）`
+    } else {
+      notice.value = '帳單儲存成功'
+    }
   } catch (e:any) {
     const message = e?.response?.data || e?.message || '儲存失敗'
     error.value = typeof message === 'string' ? message : JSON.stringify(message)

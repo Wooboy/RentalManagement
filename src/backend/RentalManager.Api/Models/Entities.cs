@@ -2,6 +2,7 @@
 
 public enum TenantType { Person = 1, Company = 2 }
 public enum ContractStatus { Active = 1, Expired = 2, Terminated = 3 }
+public enum PaymentIntervalType { Monthly = 1, Quarterly = 3, Yearly = 12 }
 public enum ElectricityRuleType { Unit = 1, Average = 2, MultiMeter = 3 }
 public enum ChargeCategory { Rent = 1, Water = 2, Electricity = 3, Other = 99 }
 public enum ExpenseCategory { Water = 1, Electricity = 2, Gas = 3, Internet = 4, Television = 5, Management = 6, Parking = 7, Tax = 8, Repair = 9, Other = 99 }
@@ -66,6 +67,8 @@ public class Contract
     public DateTime StartDateUtc { get; set; }
     public DateTime EndDateUtc { get; set; }
     public decimal MonthlyRent { get; set; }
+    public int PaymentIntervalMonths { get; set; } = 1;
+    public decimal PeriodPayableAmount { get; set; }
     public decimal Deposit { get; set; }
     public int OccupantCount { get; set; }
     public ElectricityRuleType ElectricityRuleType { get; set; }

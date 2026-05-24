@@ -13,6 +13,7 @@ public record ContractUpsertRequest(
     DateTime StartDateUtc,
     DateTime EndDateUtc,
     decimal MonthlyRent,
+    int PaymentIntervalMonths,
     decimal Deposit,
     int OccupantCount,
     int ElectricityRuleType,
@@ -25,11 +26,12 @@ public record ContractUpsertRequest(
 public class ContractsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] string? keyword, [FromQuery] int? propertyUnitId, [FromQuery] int? propertyRoomId)
+    public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] string? keyword, [FromQuery] int? propertyUnitId, [FromQuery] int? propertyRoomId, [FromQuery] int? status)
     {
         var query = db.Contracts.Include(x => x.Tenant).Include(x => x.PropertyUnit).AsQueryable();
         if (!string.IsNullOrWhiteSpace(keyword)) query = query.Where(x => x.ContractNo.Contains(keyword) || x.PropertyName.Contains(keyword));
         if (propertyUnitId.HasValue) query = query.Where(x => x.PropertyUnitId == propertyUnitId.Value);
+        if (status.HasValue) query = query.Where(x => (int)x.Status == status.Value);
 
         var contracts = await query.OrderByDescending(x => x.Id).ToListAsync();
         var ids = contracts.Select(x => x.Id).ToList();
@@ -41,7 +43,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
 
         var rows = contracts.Select(c => new {
             c.Id, c.ContractNo, c.TenantId, c.Tenant, c.PropertyUnitId, c.PropertyName, c.PropertyAddress,
-            c.StartDateUtc, c.EndDateUtc, c.MonthlyRent, c.Deposit, c.OccupantCount, c.ElectricityRuleType, c.Status,
+            c.StartDateUtc, c.EndDateUtc, c.MonthlyRent, c.PaymentIntervalMonths, c.PeriodPayableAmount, c.Deposit, c.OccupantCount, c.ElectricityRuleType, c.Status,
             c.CreatedAtUtc, c.UpdatedAtUtc,
             PropertyRoomIds = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Select(r => r.PropertyRoomId).ToList() : new List<int>(),
             Rooms = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Cast<object>().ToList() : new List<object>()
@@ -63,7 +65,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
 
         var contract = new Contract
         {
-            ContractNo = model.ContractNo,
+            ContractNo = string.IsNullOrWhiteSpace(model.ContractNo) ? $"AUTO-{DateTime.UtcNow:yyyyMMddHHmmss}" : model.ContractNo.Trim(),
             TenantId = model.TenantId,
             PropertyUnitId = valid.propertyUnit!.Id,
             PropertyName = valid.propertyDisplay!,
@@ -71,6 +73,8 @@ public class ContractsController(AppDbContext db) : ControllerBase
             StartDateUtc = model.StartDateUtc,
             EndDateUtc = model.EndDateUtc,
             MonthlyRent = model.MonthlyRent,
+            PaymentIntervalMonths = model.PaymentIntervalMonths,
+            PeriodPayableAmount = model.MonthlyRent * model.PaymentIntervalMonths,
             Deposit = model.Deposit,
             OccupantCount = model.OccupantCount,
             ElectricityRuleType = (ElectricityRuleType)model.ElectricityRuleType,
@@ -95,7 +99,10 @@ public class ContractsController(AppDbContext db) : ControllerBase
         var valid = await ValidateAndResolve(model);
         if (!valid.ok) return BadRequest(valid.error);
 
-        item.ContractNo = model.ContractNo;
+        if (!string.IsNullOrWhiteSpace(model.ContractNo))
+        {
+            item.ContractNo = model.ContractNo.Trim();
+        }
         item.TenantId = model.TenantId;
         item.PropertyUnitId = valid.propertyUnit!.Id;
         item.PropertyName = valid.propertyDisplay!;
@@ -103,6 +110,8 @@ public class ContractsController(AppDbContext db) : ControllerBase
         item.StartDateUtc = model.StartDateUtc;
         item.EndDateUtc = model.EndDateUtc;
         item.MonthlyRent = model.MonthlyRent;
+        item.PaymentIntervalMonths = model.PaymentIntervalMonths;
+        item.PeriodPayableAmount = model.MonthlyRent * model.PaymentIntervalMonths;
         item.Deposit = model.Deposit;
         item.OccupantCount = model.OccupantCount;
         item.ElectricityRuleType = (ElectricityRuleType)model.ElectricityRuleType;
@@ -129,8 +138,8 @@ public class ContractsController(AppDbContext db) : ControllerBase
 
     private async Task<(bool ok, string? error, PropertyUnit? propertyUnit, string? propertyDisplay)> ValidateAndResolve(ContractUpsertRequest model)
     {
-        if (string.IsNullOrWhiteSpace(model.ContractNo)) return (false, "合約編號必填", null, null);
         if (model.TenantId <= 0) return (false, "請選擇租客", null, null);
+        if (model.PaymentIntervalMonths != 1 && model.PaymentIntervalMonths != 3 && model.PaymentIntervalMonths != 12) return (false, "付款間隔只允許每月、每季、每年", null, null);
         if (model.PropertyRoomIds is null || model.PropertyRoomIds.Count == 0) return (false, "請至少選擇一間房間", null, null);
         if (!await db.Tenants.AnyAsync(x => x.Id == model.TenantId)) return (false, "租客不存在", null, null);
 
