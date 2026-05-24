@@ -1,37 +1,14 @@
 ﻿<template>
   <div class="card bg-base-100 shadow p-4">
     <h2 class="text-lg font-bold mb-2">應收費用</h2>
-    <div class="flex gap-2 mb-3">
-      <label class="form-control"><span class="label-text mb-1">查詢起日</span><input v-model="startDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
-      <label class="form-control"><span class="label-text mb-1">查詢迄日</span><input v-model="endDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
-      <label class="form-control"><span class="label-text mb-1">收款狀態</span><select v-model="paidFilter" class="select select-bordered">
-        <option value="all">全部</option>
-        <option value="paid">已收</option>
-        <option value="unpaid">未收</option>
+    <div class="flex flex-wrap items-end gap-3 mb-3">
+      <label class="form-control min-w-56"><span class="label-text mb-1">查詢起日</span><input v-model="startDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
+      <label class="form-control min-w-56"><span class="label-text mb-1">查詢迄日</span><input v-model="endDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
+      <label class="form-control min-w-40"><span class="label-text mb-1">收款狀態</span><select v-model="paidFilter" class="select select-bordered">
+        <option value="all">全部</option><option value="paid">已收</option><option value="unpaid">未收</option>
       </select></label>
       <button class="btn" @click="search">查詢</button>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-      <label class="form-control"><span class="label-text mb-1">合約 *</span><select v-model.number="form.contractId" class="select select-bordered">
-        <option :value="0">選擇合約 *</option>
-        <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.contractNo }} - {{ c.propertyName }}</option>
-      </select></label>
-      <label class="form-control"><span class="label-text mb-1">類別</span><select v-model.number="form.category" class="select select-bordered">
-        <option :value="1">租金</option><option :value="2">水費</option><option :value="3">電費</option><option :value="99">其他</option>
-      </select></label>
-      <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
-      <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEndUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
-      <label class="form-control"><span class="label-text mb-1">金額 *</span><input v-model.number="form.amount" type="number" class="input input-bordered" placeholder="請輸入" /></label>
-      <label class="form-control"><span class="label-text mb-1">錶初讀數</span><input v-model.number="form.meterStart" type="number" class="input input-bordered" placeholder="請輸入" /></label>
-      <label class="form-control"><span class="label-text mb-1">錶末讀數</span><input v-model.number="form.meterEnd" type="number" class="input input-bordered" placeholder="請輸入" /></label>
-      <label class="form-control"><span class="label-text mb-1">備註</span><input v-model="form.notes" class="input input-bordered" placeholder="請輸入" /></label>
-    </div>
-
-    <div class="flex gap-2 mb-3">
-      <button class="btn btn-primary" @click="save">{{ form.id ? '更新' : '新增' }}</button>
-      <button v-if="form.id" class="btn" @click="reset">取消</button>
-      <span class="text-error text-sm self-center">{{ error }}</span>
+      <button class="btn btn-primary" @click="openCreateModal">新增</button>
     </div>
 
     <table class="table table-zebra">
@@ -47,6 +24,32 @@
         </tr>
       </tbody>
     </table>
+
+    <dialog class="modal" :class="{ 'modal-open': showModal }">
+      <div class="modal-box max-w-4xl max-h-[85vh] overflow-y-auto">
+        <h3 class="font-bold text-lg mb-3">{{ form.id ? '編輯應收' : '新增應收' }}</h3>
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <label class="form-control"><span class="label-text mb-1">合約 *</span><select v-model.number="form.contractId" class="select select-bordered">
+            <option :value="0">選擇合約 *</option>
+            <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.propertyName }}</option>
+          </select></label>
+          <label class="form-control"><span class="label-text mb-1">類別</span><select v-model.number="form.category" class="select select-bordered">
+            <option :value="1">租金</option><option :value="2">水費</option><option :value="3">電費</option><option :value="99">其他</option>
+          </select></label>
+          <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEndUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">金額 *</span><input v-model.number="form.amount" type="number" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">錶初讀數</span><input v-model.number="form.meterStart" type="number" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">錶末讀數</span><input v-model.number="form.meterEnd" type="number" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">備註</span><input v-model="form.notes" class="input input-bordered" /></label>
+        </div>
+        <p class="text-error text-sm mt-3">{{ error }}</p>
+        <div class="modal-action">
+          <button class="btn" @click="closeModal">取消</button>
+          <button class="btn btn-primary" @click="save">{{ form.id ? '更新' : '新增' }}</button>
+        </div>
+      </div>
+    </dialog>
   </div>
 </template>
 <script setup lang="ts">
@@ -61,6 +64,7 @@ const paidFilter = ref<'all'|'paid'|'unpaid'>('all')
 const items = ref<any[]>([])
 const contracts = ref<any[]>([])
 const error = ref('')
+const showModal = ref(false)
 const toDateInput = (v: string) => (v ? v.slice(0,10) : '')
 const toIsoDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString()
 const seed = ()=>({ id:0, contractId:0, category:1, billingStartUtc:toDateInput(new Date().toISOString()), billingEndUtc:toDateInput(new Date().toISOString()), amount:0, meterStart:null as number | null, meterEnd:null as number | null, notes:'', isPaid:false, paidAtUtc:null })
@@ -84,9 +88,11 @@ const applyQueryFilter = () => {
 onMounted(async()=>{ applyQueryFilter(); await Promise.all([load(),loadContracts()]) })
 const search = async()=>{ await router.replace({ query: { startDate: startDate.value, endDate: endDate.value, paid: paidFilter.value } }); await load() }
 const reset = ()=>{ form.value=seed(); error.value='' }
-const edit = (c:any)=>{ form.value={...c,billingStartUtc:toDateInput(c.billingStartUtc),billingEndUtc:toDateInput(c.billingEndUtc)}; error.value='' }
+const openCreateModal = ()=>{ reset(); showModal.value = true }
+const closeModal = ()=>{ showModal.value = false; reset() }
+const edit = (c:any)=>{ form.value={...c,billingStartUtc:toDateInput(c.billingStartUtc),billingEndUtc:toDateInput(c.billingEndUtc)}; error.value=''; showModal.value = true }
 const validate = ()=>{ if(!form.value.contractId) return '請選擇合約'; if(form.value.amount<0) return '金額不可小於0'; if(!form.value.billingStartUtc||!form.value.billingEndUtc) return '請輸入帳期'; if(form.value.meterStart!=null && form.value.meterEnd!=null && form.value.meterEnd<form.value.meterStart) return '錶末不可小於錶初'; return '' }
-const save = async()=>{ error.value=validate(); if(error.value) return; const payload={...form.value,billingStartUtc:toIsoDate(form.value.billingStartUtc),billingEndUtc:toIsoDate(form.value.billingEndUtc)}; if(form.value.id) await api.put(`/charges/${form.value.id}`,payload); else await api.post('/charges',payload); reset(); await load() }
+const save = async()=>{ error.value=validate(); if(error.value) return; const payload={...form.value,billingStartUtc:toIsoDate(form.value.billingStartUtc),billingEndUtc:toIsoDate(form.value.billingEndUtc)}; if(form.value.id) await api.put(`/charges/${form.value.id}`,payload); else await api.post('/charges',payload); closeModal(); await load() }
 const togglePaid = async(c:any)=>{ await api.put(`/charges/${c.id}`,{...c,isPaid:!c.isPaid,paidAtUtc:!c.isPaid?new Date().toISOString():null}); await load() }
 const remove = async(id:number)=>{ await api.delete(`/charges/${id}`); await load() }
 </script>
