@@ -45,7 +45,18 @@
   - 查詢關聯繳款記錄
   - 合約狀態（生效中/已到期/已終止）
 
-### 4.3 費用管理
+### 4.3 房源管理
+- 管理多間房屋/房源基本資料
+- 欄位
+  - 房源代碼
+  - 房源名稱
+  - 房源地址
+  - 備註
+- 功能
+  - 房源新增/編輯/刪除
+  - 合約建立時可選擇房源，帶入房源名稱與地址
+
+### 4.4 費用管理
 - 收入：租金、其他收入
 - 支出：水費、電費、瓦斯費、網路費、電視費、管理費、停車費、稅金、修繕、其他
 - 功能
@@ -53,7 +64,7 @@
   - 新增支出費用
   - 月報表（收入、支出、損益）
 
-### 4.4 電費規則管理
+### 4.5 電費規則管理
 每張電費帳單可指定規則：
 
 1) 依度數計算
@@ -83,10 +94,13 @@
 - CreatedAt, UpdatedAt
 
 ### Contract
-- Id, ContractNo, TenantId, PropertyName, PropertyAddress
+- Id, ContractNo, TenantId, PropertyUnitId, PropertyName, PropertyAddress
 - StartDate, EndDate, MonthlyRent, Deposit, OccupantCount
 - ElectricityRuleType(Unit/Avg/MultiMeter), Status
 - CreatedAt, UpdatedAt
+
+### PropertyUnit
+- Id, Code, Name, Address, Notes, CreatedAt, UpdatedAt
 
 ### ChargeRecord（應收）
 - Id, ContractId, Category(Rent/Water/Electricity/...)
@@ -126,6 +140,7 @@
 ## 6. API（v1）
 - `POST /api/auth/login`
 - `GET/POST/PUT/DELETE /api/tenants`
+- `GET/POST/PUT/DELETE /api/properties`
 - `GET/POST/PUT/DELETE /api/contracts`
 - `GET/POST /api/charges`
 - `GET/POST /api/expenses`
@@ -136,6 +151,7 @@
 - 登入頁
 - 儀表板（本月收入/支出/損益）
 - 租客管理頁
+- 房源管理頁
 - 合約管理頁
 - 應收費用頁（含水電錶數）
 - 支出管理頁

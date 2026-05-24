@@ -30,12 +30,25 @@ public class Tenant
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public class PropertyUnit
+{
+    public int Id { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public string? Notes { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public class Contract
 {
     public int Id { get; set; }
     public string ContractNo { get; set; } = string.Empty;
     public int TenantId { get; set; }
     public Tenant? Tenant { get; set; }
+    public int? PropertyUnitId { get; set; }
+    public PropertyUnit? PropertyUnit { get; set; }
     public string PropertyName { get; set; } = string.Empty;
     public string PropertyAddress { get; set; } = string.Empty;
     public DateTime StartDateUtc { get; set; }

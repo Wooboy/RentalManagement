@@ -14,7 +14,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Contract>>> GetAll([FromQuery] string? keyword)
     {
-        var query = db.Contracts.Include(x => x.Tenant).AsQueryable();
+        var query = db.Contracts.Include(x => x.Tenant).Include(x => x.PropertyUnit).AsQueryable();
         if (!string.IsNullOrWhiteSpace(keyword))
         {
             query = query.Where(x => x.ContractNo.Contains(keyword) || x.PropertyName.Contains(keyword));
@@ -26,7 +26,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<Contract>> GetById(int id)
     {
-        var item = await db.Contracts.Include(x => x.Tenant).FirstOrDefaultAsync(x => x.Id == id);
+        var item = await db.Contracts.Include(x => x.Tenant).Include(x => x.PropertyUnit).FirstOrDefaultAsync(x => x.Id == id);
         return item is null ? NotFound() : Ok(item);
     }
 
@@ -48,6 +48,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
 
         item.ContractNo = model.ContractNo;
         item.TenantId = model.TenantId;
+        item.PropertyUnitId = model.PropertyUnitId;
         item.PropertyName = model.PropertyName;
         item.PropertyAddress = model.PropertyAddress;
         item.StartDateUtc = model.StartDateUtc;

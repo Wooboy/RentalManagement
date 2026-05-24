@@ -6,6 +6,7 @@ namespace RentalManager.Api.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
+    public DbSet<PropertyUnit> PropertyUnits => Set<PropertyUnit>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Contract> Contracts => Set<Contract>();
     public DbSet<ChargeRecord> ChargeRecords => Set<ChargeRecord>();
@@ -18,6 +19,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(x => x.TenantId)
             .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<Contract>()
+            .HasOne(x => x.PropertyUnit)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyUnitId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<ChargeRecord>()
             .HasOne(x => x.Contract)

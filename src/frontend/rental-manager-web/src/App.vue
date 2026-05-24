@@ -5,6 +5,7 @@
       <div class="ml-6 flex gap-3 text-sm">
         <RouterLink to="/">儀表板</RouterLink>
         <RouterLink to="/tenants">租客</RouterLink>
+        <RouterLink to="/properties">房源</RouterLink>
         <RouterLink to="/contracts">合約</RouterLink>
         <RouterLink to="/charges">應收</RouterLink>
         <RouterLink to="/expenses">支出</RouterLink>
