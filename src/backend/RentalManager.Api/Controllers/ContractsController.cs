@@ -25,24 +25,34 @@ public record ContractUpsertRequest(
 public class ContractsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] string? keyword)
+    public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] string? keyword, [FromQuery] int? propertyUnitId, [FromQuery] int? propertyRoomId)
     {
         var query = db.Contracts.Include(x => x.Tenant).Include(x => x.PropertyUnit).AsQueryable();
         if (!string.IsNullOrWhiteSpace(keyword)) query = query.Where(x => x.ContractNo.Contains(keyword) || x.PropertyName.Contains(keyword));
+        if (propertyUnitId.HasValue) query = query.Where(x => x.PropertyUnitId == propertyUnitId.Value);
 
         var contracts = await query.OrderByDescending(x => x.Id).ToListAsync();
         var ids = contracts.Select(x => x.Id).ToList();
-        var roomMap = await db.ContractRooms.Include(x => x.PropertyRoom).Where(x => ids.Contains(x.ContractId))
+        var roomQuery = db.ContractRooms.Include(x => x.PropertyRoom).Where(x => ids.Contains(x.ContractId));
+        if (propertyRoomId.HasValue) roomQuery = roomQuery.Where(x => x.PropertyRoomId == propertyRoomId.Value);
+        var roomMap = await roomQuery
             .GroupBy(x => x.ContractId)
             .ToDictionaryAsync(g => g.Key, g => g.Select(x => new { x.PropertyRoomId, RoomCode = x.PropertyRoom!.Code, RoomName = x.PropertyRoom!.Name }).ToList());
 
-        return Ok(contracts.Select(c => new {
+        var rows = contracts.Select(c => new {
             c.Id, c.ContractNo, c.TenantId, c.Tenant, c.PropertyUnitId, c.PropertyName, c.PropertyAddress,
             c.StartDateUtc, c.EndDateUtc, c.MonthlyRent, c.Deposit, c.OccupantCount, c.ElectricityRuleType, c.Status,
             c.CreatedAtUtc, c.UpdatedAtUtc,
             PropertyRoomIds = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Select(r => r.PropertyRoomId).ToList() : new List<int>(),
             Rooms = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Cast<object>().ToList() : new List<object>()
-        }));
+        }).ToList();
+
+        if (propertyRoomId.HasValue)
+        {
+            rows = rows.Where(x => x.PropertyRoomIds.Contains(propertyRoomId.Value)).ToList();
+        }
+
+        return Ok(rows);
     }
 
     [HttpPost]

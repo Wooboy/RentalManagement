@@ -112,6 +112,7 @@ public class ExpenseRecord
     public DateTime BillingStartUtc { get; set; }
     public DateTime BillingEndUtc { get; set; }
     public decimal Amount { get; set; }
+    public decimal? UsageUnits { get; set; }
     public string? Notes { get; set; }
     public DateTime OccurredAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
