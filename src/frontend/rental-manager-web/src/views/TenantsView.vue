@@ -2,12 +2,21 @@
   <div class="card bg-base-100 shadow p-4">
     <h2 class="text-lg font-bold mb-2">租客管理</h2>
     <div class="flex gap-2 mb-3">
-      <input v-model="keyword" class="input input-bordered" placeholder="搜尋姓名/電話" />
+      <label class="form-control">
+        <span class="label-text mb-1">搜尋關鍵字</span>
+        <input v-model="keyword" class="input input-bordered" placeholder="姓名/電話" />
+      </label>
       <button class="btn" @click="load">查詢</button>
     </div>
     <div class="flex gap-2 mb-3">
-      <input v-model="form.name" class="input input-bordered" placeholder="姓名/公司" />
-      <input v-model="form.phone" class="input input-bordered" placeholder="電話" />
+      <label class="form-control">
+        <span class="label-text mb-1">姓名/公司</span>
+        <input v-model="form.name" class="input input-bordered" placeholder="請輸入" />
+      </label>
+      <label class="form-control">
+        <span class="label-text mb-1">電話</span>
+        <input v-model="form.phone" class="input input-bordered" placeholder="請輸入" />
+      </label>
       <button class="btn btn-primary" @click="save">{{ form.id ? '更新' : '新增' }}</button>
       <button v-if="form.id" class="btn" @click="reset">取消</button>
     </div>

@@ -1,8 +1,14 @@
 ﻿<template>
   <div class="card bg-base-100 shadow p-6 max-w-md">
     <h2 class="text-xl font-bold mb-4">管理者登入</h2>
-    <input v-model="username" class="input input-bordered mb-3" placeholder="帳號" />
-    <input v-model="password" type="password" class="input input-bordered mb-3" placeholder="密碼" />
+    <label class="form-control mb-3">
+      <span class="label-text mb-1">帳號</span>
+      <input v-model="username" class="input input-bordered" placeholder="請輸入帳號" />
+    </label>
+    <label class="form-control mb-3">
+      <span class="label-text mb-1">密碼</span>
+      <input v-model="password" type="password" class="input input-bordered" placeholder="請輸入密碼" />
+    </label>
     <button class="btn btn-primary" @click="login">登入</button>
     <p class="text-sm mt-3">{{ message }}</p>
   </div>

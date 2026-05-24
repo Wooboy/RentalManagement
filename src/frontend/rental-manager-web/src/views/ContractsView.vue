@@ -2,21 +2,24 @@
   <div class="card bg-base-100 shadow p-4">
     <h2 class="text-lg font-bold mb-2">合約管理</h2>
     <div class="flex gap-2 mb-3">
-      <input v-model="keyword" class="input input-bordered" placeholder="搜尋合約編號/房源" />
+      <label class="form-control">
+        <span class="label-text mb-1">搜尋關鍵字</span>
+        <input v-model="keyword" class="input input-bordered" placeholder="合約編號/房源" />
+      </label>
       <button class="btn" @click="load">查詢</button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-      <input v-model="form.contractNo" class="input input-bordered" placeholder="合約編號 *" />
-      <select v-model.number="form.tenantId" class="select select-bordered">
+      <label class="form-control"><span class="label-text mb-1">合約編號 *</span><input v-model="form.contractNo" class="input input-bordered" placeholder="請輸入" /></label>
+      <label class="form-control"><span class="label-text mb-1">租客 *</span><select v-model.number="form.tenantId" class="select select-bordered">
         <option :value="0">選擇租客 *</option>
         <option v-for="t in tenants" :key="t.id" :value="t.id">{{ t.name }}</option>
-      </select>
-      <select v-model.number="selectedPropertyId" class="select select-bordered" @change="onPropertyChange">
+      </select></label>
+      <label class="form-control"><span class="label-text mb-1">房源 *</span><select v-model.number="selectedPropertyId" class="select select-bordered" @change="onPropertyChange">
         <option :value="0">選擇房源 *</option>
         <option v-for="p in properties" :key="p.id" :value="p.id">{{ p.code }} - {{ p.name }}</option>
-      </select>
-      <input v-model.number="form.monthlyRent" type="number" class="input input-bordered" placeholder="月租 *" />
+      </select></label>
+      <label class="form-control"><span class="label-text mb-1">月租 *</span><input v-model.number="form.monthlyRent" type="number" class="input input-bordered" placeholder="請輸入" /></label>
     </div>
 
     <div class="mb-3">
@@ -30,16 +33,16 @@
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-      <input v-model.number="form.deposit" type="number" class="input input-bordered" placeholder="押金" />
-      <input v-model.number="form.occupantCount" type="number" class="input input-bordered" placeholder="居住人數 *" />
-      <input v-model="form.startDateUtc" type="date" class="input input-bordered" />
-      <input v-model="form.endDateUtc" type="date" class="input input-bordered" />
-      <select v-model.number="form.electricityRuleType" class="select select-bordered">
+      <label class="form-control"><span class="label-text mb-1">押金</span><input v-model.number="form.deposit" type="number" class="input input-bordered" placeholder="請輸入" /></label>
+      <label class="form-control"><span class="label-text mb-1">居住人數 *</span><input v-model.number="form.occupantCount" type="number" class="input input-bordered" placeholder="請輸入" /></label>
+      <label class="form-control"><span class="label-text mb-1">合約起始</span><input v-model="form.startDateUtc" type="date" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">合約終止</span><input v-model="form.endDateUtc" type="date" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">電費規則</span><select v-model.number="form.electricityRuleType" class="select select-bordered">
         <option :value="1">電費規則：依度數</option><option :value="2">電費規則：平均</option><option :value="3">電費規則：多錶</option>
-      </select>
-      <select v-model.number="form.status" class="select select-bordered">
+      </select></label>
+      <label class="form-control"><span class="label-text mb-1">合約狀態</span><select v-model.number="form.status" class="select select-bordered">
         <option :value="1">狀態：生效中</option><option :value="2">狀態：已到期</option><option :value="3">狀態：已終止</option>
-      </select>
+      </select></label>
     </div>
 
     <div class="flex gap-2 mb-3">

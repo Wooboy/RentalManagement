@@ -4,14 +4,14 @@
       <h2 class="text-lg font-bold mb-3">電費試算與入帳（多錶）</h2>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-        <select v-model.number="form.contractId" class="select select-bordered">
+        <label class="form-control"><span class="label-text mb-1">合約</span><select v-model.number="form.contractId" class="select select-bordered">
           <option :value="0">選擇合約 *</option>
           <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.contractNo }} - {{ c.propertyName }}</option>
-        </select>
-        <input v-model="form.billingStart" type="date" class="input input-bordered" />
-        <input v-model="form.billingEnd" type="date" class="input input-bordered" />
-        <input v-model.number="form.totalAmount" type="number" class="input input-bordered" placeholder="總金額" />
-        <input v-model.number="form.totalUnits" type="number" class="input input-bordered" placeholder="總度數" />
+        </select></label>
+        <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStart" type="date" class="input input-bordered" /></label>
+        <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEnd" type="date" class="input input-bordered" /></label>
+        <label class="form-control"><span class="label-text mb-1">總金額</span><input v-model.number="form.totalAmount" type="number" class="input input-bordered" placeholder="請輸入" /></label>
+        <label class="form-control"><span class="label-text mb-1">總度數</span><input v-model.number="form.totalUnits" type="number" class="input input-bordered" placeholder="請輸入" /></label>
       </div>
 
       <div class="overflow-x-auto">
@@ -47,10 +47,10 @@
     <div class="card bg-base-100 shadow p-4">
       <h3 class="font-bold mb-3">歷史電費帳單</h3>
       <div class="flex gap-2 mb-3">
-        <select v-model.number="billFilterContractId" class="select select-bordered">
+        <label class="form-control"><span class="label-text mb-1">合約篩選</span><select v-model.number="billFilterContractId" class="select select-bordered">
           <option :value="0">全部合約</option>
           <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.contractNo }}</option>
-        </select>
+        </select></label>
         <button class="btn" @click="loadBills">查詢</button>
       </div>
       <table class="table table-zebra">

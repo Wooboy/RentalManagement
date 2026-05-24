@@ -1,15 +1,18 @@
 ﻿<template>
   <div class="space-y-4">
     <div class="card bg-base-100 shadow p-4">
-      <h2 class="text-lg font-bold mb-2">房源管理（主）</h2>
+      <h2 class="text-lg font-bold mb-2">房源管理</h2>
       <div class="flex gap-2 mb-3">
-        <input v-model="keyword" class="input input-bordered" placeholder="搜尋代碼/名稱/地址" />
+        <label class="form-control">
+          <span class="label-text mb-1">搜尋關鍵字</span>
+          <input v-model="keyword" class="input input-bordered" placeholder="代碼/名稱/地址" />
+        </label>
         <button class="btn" @click="loadProperties">查詢</button>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-        <input v-model="propertyForm.code" class="input input-bordered" placeholder="房源代碼" />
-        <input v-model="propertyForm.name" class="input input-bordered" placeholder="房源名稱" />
-        <input v-model="propertyForm.address" class="input input-bordered" placeholder="地址" />
+        <label class="form-control"><span class="label-text mb-1">房源代碼</span><input v-model="propertyForm.code" class="input input-bordered" placeholder="請輸入" /></label>
+        <label class="form-control"><span class="label-text mb-1">房源名稱</span><input v-model="propertyForm.name" class="input input-bordered" placeholder="請輸入" /></label>
+        <label class="form-control"><span class="label-text mb-1">地址</span><input v-model="propertyForm.address" class="input input-bordered" placeholder="請輸入" /></label>
         <div class="flex gap-2">
           <button class="btn btn-primary" @click="saveProperty">{{ propertyForm.id ? '更新' : '新增' }}</button>
           <button v-if="propertyForm.id" class="btn" @click="resetProperty">取消</button>
@@ -31,12 +34,12 @@
     </div>
 
     <div class="card bg-base-100 shadow p-4">
-      <h2 class="text-lg font-bold mb-2">房間管理（從）</h2>
+      <h2 class="text-lg font-bold mb-2">房間管理</h2>
       <p class="text-sm mb-3">目前房源：{{ currentPropertyLabel }}</p>
       <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-        <input v-model="roomForm.code" class="input input-bordered" placeholder="房間代碼" />
-        <input v-model="roomForm.name" class="input input-bordered" placeholder="房間名稱" />
-        <input v-model="roomForm.notes" class="input input-bordered" placeholder="備註" />
+        <label class="form-control"><span class="label-text mb-1">房間代碼</span><input v-model="roomForm.code" class="input input-bordered" placeholder="請輸入" /></label>
+        <label class="form-control"><span class="label-text mb-1">房間名稱</span><input v-model="roomForm.name" class="input input-bordered" placeholder="請輸入" /></label>
+        <label class="form-control"><span class="label-text mb-1">備註</span><input v-model="roomForm.notes" class="input input-bordered" placeholder="請輸入" /></label>
         <div class="flex gap-2">
           <button class="btn btn-primary" :disabled="!selectedPropertyId" @click="saveRoom">{{ roomForm.id ? '更新' : '新增' }}</button>
           <button v-if="roomForm.id" class="btn" @click="resetRoom">取消</button>

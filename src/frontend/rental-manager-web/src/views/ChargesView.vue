@@ -2,25 +2,25 @@
   <div class="card bg-base-100 shadow p-4">
     <h2 class="text-lg font-bold mb-2">應收費用</h2>
     <div class="flex gap-2 mb-3">
-      <input v-model.number="year" class="input input-bordered" type="number" placeholder="年" />
-      <input v-model.number="month" class="input input-bordered" type="number" placeholder="月" />
+      <label class="form-control"><span class="label-text mb-1">年份</span><input v-model.number="year" class="input input-bordered" type="number" placeholder="YYYY" /></label>
+      <label class="form-control"><span class="label-text mb-1">月份</span><input v-model.number="month" class="input input-bordered" type="number" placeholder="MM" /></label>
       <button class="btn" @click="search">查詢</button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-      <select v-model.number="form.contractId" class="select select-bordered">
+      <label class="form-control"><span class="label-text mb-1">合約 *</span><select v-model.number="form.contractId" class="select select-bordered">
         <option :value="0">選擇合約 *</option>
         <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.contractNo }} - {{ c.propertyName }}</option>
-      </select>
-      <select v-model.number="form.category" class="select select-bordered">
+      </select></label>
+      <label class="form-control"><span class="label-text mb-1">類別</span><select v-model.number="form.category" class="select select-bordered">
         <option :value="1">租金</option><option :value="2">水費</option><option :value="3">電費</option><option :value="99">其他</option>
-      </select>
-      <input v-model="form.billingStartUtc" type="date" class="input input-bordered" />
-      <input v-model="form.billingEndUtc" type="date" class="input input-bordered" />
-      <input v-model.number="form.amount" type="number" class="input input-bordered" placeholder="金額 *" />
-      <input v-model.number="form.meterStart" type="number" class="input input-bordered" placeholder="錶初讀數" />
-      <input v-model.number="form.meterEnd" type="number" class="input input-bordered" placeholder="錶末讀數" />
-      <input v-model="form.notes" class="input input-bordered" placeholder="備註" />
+      </select></label>
+      <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEndUtc" type="date" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">金額 *</span><input v-model.number="form.amount" type="number" class="input input-bordered" placeholder="請輸入" /></label>
+      <label class="form-control"><span class="label-text mb-1">錶初讀數</span><input v-model.number="form.meterStart" type="number" class="input input-bordered" placeholder="請輸入" /></label>
+      <label class="form-control"><span class="label-text mb-1">錶末讀數</span><input v-model.number="form.meterEnd" type="number" class="input input-bordered" placeholder="請輸入" /></label>
+      <label class="form-control"><span class="label-text mb-1">備註</span><input v-model="form.notes" class="input input-bordered" placeholder="請輸入" /></label>
     </div>
 
     <div class="flex gap-2 mb-3">
