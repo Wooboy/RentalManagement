@@ -27,7 +27,7 @@ public class ChargesController(AppDbContext db) : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ChargeRecord>>> GetAll([FromQuery] DateTime? startDateUtc, [FromQuery] DateTime? endDateUtc)
+    public async Task<ActionResult<IEnumerable<ChargeRecord>>> GetAll([FromQuery] DateTime? startDateUtc, [FromQuery] DateTime? endDateUtc, [FromQuery] bool? isPaid)
     {
         var query = db.ChargeRecords.AsQueryable();
         if (startDateUtc.HasValue)
@@ -37,6 +37,10 @@ public class ChargesController(AppDbContext db) : ControllerBase
         if (endDateUtc.HasValue)
         {
             query = query.Where(x => x.BillingStartUtc <= endDateUtc.Value);
+        }
+        if (isPaid.HasValue)
+        {
+            query = query.Where(x => x.IsPaid == isPaid.Value);
         }
 
         return Ok(await query.OrderByDescending(x => x.Id).ToListAsync());
