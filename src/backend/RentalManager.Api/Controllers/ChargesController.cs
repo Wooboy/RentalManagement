@@ -27,14 +27,16 @@ public class ChargesController(AppDbContext db) : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ChargeRecord>>> GetAll([FromQuery] int? year, [FromQuery] int? month)
+    public async Task<ActionResult<IEnumerable<ChargeRecord>>> GetAll([FromQuery] DateTime? startDateUtc, [FromQuery] DateTime? endDateUtc)
     {
         var query = db.ChargeRecords.AsQueryable();
-        if (year.HasValue && month.HasValue)
+        if (startDateUtc.HasValue)
         {
-            var start = new DateTime(year.Value, month.Value, 1, 0, 0, 0, DateTimeKind.Utc);
-            var end = start.AddMonths(1);
-            query = query.Where(x => x.BillingStartUtc >= start && x.BillingStartUtc < end);
+            query = query.Where(x => x.BillingStartUtc >= startDateUtc.Value);
+        }
+        if (endDateUtc.HasValue)
+        {
+            query = query.Where(x => x.BillingStartUtc <= endDateUtc.Value);
         }
 
         return Ok(await query.OrderByDescending(x => x.Id).ToListAsync());

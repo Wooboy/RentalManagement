@@ -2,8 +2,8 @@
   <div class="card bg-base-100 shadow p-4">
     <h2 class="text-lg font-bold mb-2">應收費用</h2>
     <div class="flex gap-2 mb-3">
-      <label class="form-control"><span class="label-text mb-1">年份</span><input v-model.number="year" class="input input-bordered" type="number" placeholder="YYYY" /></label>
-      <label class="form-control"><span class="label-text mb-1">月份</span><input v-model.number="month" class="input input-bordered" type="number" placeholder="MM" /></label>
+      <label class="form-control"><span class="label-text mb-1">查詢起日</span><input v-model="startDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
+      <label class="form-control"><span class="label-text mb-1">查詢迄日</span><input v-model="endDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
       <button class="btn" @click="search">查詢</button>
     </div>
 
@@ -50,9 +50,8 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 const route = useRoute()
 const router = useRouter()
-const now = new Date()
-const year = ref(now.getUTCFullYear())
-const month = ref(now.getUTCMonth()+1)
+const startDate = ref('2000-01-01')
+const endDate = ref('2099-12-31')
 const items = ref<any[]>([])
 const contracts = ref<any[]>([])
 const error = ref('')
@@ -60,16 +59,16 @@ const toDateInput = (v: string) => (v ? v.slice(0,10) : '')
 const toIsoDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString()
 const seed = ()=>({ id:0, contractId:0, category:1, billingStartUtc:toDateInput(new Date().toISOString()), billingEndUtc:toDateInput(new Date().toISOString()), amount:0, meterStart:null as number | null, meterEnd:null as number | null, notes:'', isPaid:false, paidAtUtc:null })
 const form = ref<any>(seed())
-const load = async()=>{ const {data}=await api.get('/charges',{params:{year:year.value,month:month.value}}); items.value=data }
+const load = async()=>{ const {data}=await api.get('/charges',{params:{startDateUtc:toIsoDate(startDate.value),endDateUtc:toIsoDate(endDate.value)}}); items.value=data }
 const loadContracts = async()=>{ const {data}=await api.get('/contracts'); contracts.value=data }
 const applyQueryFilter = () => {
-  const qYear = Number(route.query.year)
-  const qMonth = Number(route.query.month)
-  if (!Number.isNaN(qYear) && qYear > 0) year.value = qYear
-  if (!Number.isNaN(qMonth) && qMonth >= 1 && qMonth <= 12) month.value = qMonth
+  const qStart = String(route.query.startDate ?? '')
+  const qEnd = String(route.query.endDate ?? '')
+  if (qStart) startDate.value = qStart
+  if (qEnd) endDate.value = qEnd
 }
 onMounted(async()=>{ applyQueryFilter(); await Promise.all([load(),loadContracts()]) })
-const search = async()=>{ await router.replace({ query: { year: String(year.value), month: String(month.value) } }); await load() }
+const search = async()=>{ await router.replace({ query: { startDate: startDate.value, endDate: endDate.value } }); await load() }
 const reset = ()=>{ form.value=seed(); error.value='' }
 const edit = (c:any)=>{ form.value={...c,billingStartUtc:toDateInput(c.billingStartUtc),billingEndUtc:toDateInput(c.billingEndUtc)}; error.value='' }
 const validate = ()=>{ if(!form.value.contractId) return '請選擇合約'; if(form.value.amount<0) return '金額不可小於0'; if(!form.value.billingStartUtc||!form.value.billingEndUtc) return '請輸入帳期'; if(form.value.meterStart!=null && form.value.meterEnd!=null && form.value.meterEnd<form.value.meterStart) return '錶末不可小於錶初'; return '' }

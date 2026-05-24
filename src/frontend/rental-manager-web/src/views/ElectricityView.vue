@@ -96,6 +96,7 @@
         <button class="btn btn-primary" @click="calculate">試算</button>
         <button class="btn btn-secondary" @click="saveBill">儲存帳單</button>
         <span class="text-error text-sm self-center">{{ error }}</span>
+        <span class="text-success text-sm self-center">{{ notice }}</span>
       </div>
 
       <div class="mt-3 text-sm" v-if="result">
@@ -136,6 +137,7 @@ const relatedContracts = ref<any[]>([])
 const relatedContractRooms = ref<any[]>([])
 const selectedContractForAdd = ref<string>('')
 const error = ref('')
+const notice = ref('')
 const result = ref<any>(null)
 const today = new Date().toISOString().slice(0, 10)
 const form = ref<any>({ contractId: 0, billingStart: today, billingEnd: today, allocations: [] })
@@ -371,6 +373,7 @@ const validate = () => {
 }
 
 const calculate = async () => {
+  notice.value = ''
   error.value = validate()
   if (error.value) return
   if (calcMode.value === 3) {
@@ -420,18 +423,25 @@ const calculate = async () => {
 }
 
 const saveBill = async () => {
+  notice.value = ''
   error.value = validate()
   if (error.value) return
-  await api.post('/electricity/bills', {
-    contractId: form.value.contractId || relatedContracts.value[0]?.id || 0,
-    ruleType: calcMode.value,
-    billingStartUtc: new Date(`${form.value.billingStart}T00:00:00Z`).toISOString(),
-    billingEndUtc: new Date(`${form.value.billingEnd}T00:00:00Z`).toISOString(),
-    totalAmount: aggregatedAmount.value,
-    totalUnits: aggregatedUnits.value,
-    unitPrice: aggregatedUnits.value === 0 ? 0 : aggregatedAmount.value / aggregatedUnits.value,
-    allocations: form.value.allocations.map((x: any) => ({ tenantId: x.tenantId, tenantUnits: x.tenantUnits, occupantCount: x.occupantCount, occupancyDays: x.occupancyDays }))
-  })
+  try {
+    await api.post('/electricity/bills', {
+      contractId: form.value.contractId || relatedContracts.value[0]?.id || form.value.allocations[0]?.contractId || 0,
+      ruleType: calcMode.value,
+      billingStartUtc: new Date(`${form.value.billingStart}T00:00:00Z`).toISOString(),
+      billingEndUtc: new Date(`${form.value.billingEnd}T00:00:00Z`).toISOString(),
+      totalAmount: aggregatedAmount.value,
+      totalUnits: aggregatedUnits.value,
+      unitPrice: aggregatedUnits.value === 0 ? 0 : aggregatedAmount.value / aggregatedUnits.value,
+      allocations: form.value.allocations.map((x: any) => ({ tenantId: x.tenantId, tenantUnits: x.tenantUnits, occupantCount: x.occupantCount, occupancyDays: x.occupancyDays }))
+    })
+    notice.value = '帳單儲存成功'
+  } catch (e:any) {
+    const message = e?.response?.data || e?.message || '儲存失敗'
+    error.value = typeof message === 'string' ? message : JSON.stringify(message)
+  }
 }
 
 onMounted(loadExpenseBills)
