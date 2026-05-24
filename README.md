@@ -24,6 +24,7 @@
 - `POST /api/auth/login`
 - `GET/POST/PUT/DELETE /api/tenants`（含 `keyword` 查詢）
 - `GET/POST/PUT/DELETE /api/properties`（含 `keyword` 查詢）
+- `GET/POST/PUT/DELETE /api/rooms`（可用 `propertyUnitId` 篩選）
 - `GET/POST/PUT/DELETE /api/contracts`（含 `keyword` 查詢）
 - `GET/POST/PUT/DELETE /api/charges`（含 `year/month` 查詢）
 - `GET/POST/PUT/DELETE /api/expenses`（含 `year/month` 查詢）

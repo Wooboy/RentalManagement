@@ -41,6 +41,18 @@ public class PropertyUnit
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
+public class PropertyRoom
+{
+    public int Id { get; set; }
+    public int PropertyUnitId { get; set; }
+    public PropertyUnit? PropertyUnit { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Notes { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
 public class Contract
 {
     public int Id { get; set; }
@@ -49,6 +61,8 @@ public class Contract
     public Tenant? Tenant { get; set; }
     public int? PropertyUnitId { get; set; }
     public PropertyUnit? PropertyUnit { get; set; }
+    public int? PropertyRoomId { get; set; }
+    public PropertyRoom? PropertyRoom { get; set; }
     public string PropertyName { get; set; } = string.Empty;
     public string PropertyAddress { get; set; } = string.Empty;
     public DateTime StartDateUtc { get; set; }

@@ -179,7 +179,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost("bills/{billId:int}/create-charges")]
-    public async Task<ActionResult<object>> CreateChargesFromBill(int billId)
+    public async Task<ActionResult<object>> CreateChargesFromBill(int billId, [FromQuery] string? mode)
     {
         var bill = await db.ElectricityBills.FirstOrDefaultAsync(x => x.Id == billId);
         if (bill is null) return NotFound("帳單不存在");
@@ -196,7 +196,8 @@ public class ElectricityController(AppDbContext db) : ControllerBase
         if (allocations.Count == 0) return BadRequest("無分攤資料");
 
         var created = 0;
-        foreach (var a in allocations)
+        var useMerged = string.Equals(mode, "merged", StringComparison.OrdinalIgnoreCase);
+        if (useMerged)
         {
             var charge = new ChargeRecord
             {
@@ -204,14 +205,34 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                 Category = ChargeCategory.Electricity,
                 BillingStartUtc = bill.BillingStartUtc,
                 BillingEndUtc = bill.BillingEndUtc,
-                UsageUnits = a.TenantUnits,
-                Amount = a.PayableAmount,
-                Notes = $"電費帳單#{billId} 分攤；租客ID={a.TenantId?.ToString() ?? "N/A"}",
+                UsageUnits = bill.TotalUnits,
+                Amount = bill.PayableTotalAmount,
+                Notes = $"電費帳單#{billId} 合併轉入",
                 IsPaid = false,
                 CreatedAtUtc = DateTime.UtcNow
             };
             db.ChargeRecords.Add(charge);
             created++;
+        }
+        else
+        {
+            foreach (var a in allocations)
+            {
+                var charge = new ChargeRecord
+                {
+                    ContractId = bill.ContractId,
+                    Category = ChargeCategory.Electricity,
+                    BillingStartUtc = bill.BillingStartUtc,
+                    BillingEndUtc = bill.BillingEndUtc,
+                    UsageUnits = a.TenantUnits,
+                    Amount = a.PayableAmount,
+                    Notes = $"電費帳單#{billId} 分攤；租客ID={a.TenantId?.ToString() ?? "N/A"}",
+                    IsPaid = false,
+                    CreatedAtUtc = DateTime.UtcNow
+                };
+                db.ChargeRecords.Add(charge);
+                created++;
+            }
         }
 
         await db.SaveChangesAsync();

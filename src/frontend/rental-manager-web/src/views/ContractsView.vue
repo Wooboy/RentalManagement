@@ -13,17 +13,21 @@
         <option :value="0">選擇租客 *</option>
         <option v-for="t in tenants" :key="t.id" :value="t.id">{{ t.name }}</option>
       </select>
-      <select v-model.number="selectedPropertyId" class="select select-bordered" @change="bindProperty">
+      <select v-model.number="selectedPropertyId" class="select select-bordered" @change="onPropertyChange">
         <option :value="0">選擇房源 *</option>
         <option v-for="p in properties" :key="p.id" :value="p.id">{{ p.code }} - {{ p.name }}</option>
       </select>
-      <input v-model.number="form.monthlyRent" type="number" class="input input-bordered" placeholder="月租 *" />
+      <select v-model.number="selectedRoomId" class="select select-bordered" @change="bindRoom">
+        <option :value="0">選擇房間 *</option>
+        <option v-for="r in rooms" :key="r.id" :value="r.id">{{ r.code }} - {{ r.name }}</option>
+      </select>
 
+      <input v-model.number="form.monthlyRent" type="number" class="input input-bordered" placeholder="月租 *" />
       <input v-model.number="form.deposit" type="number" class="input input-bordered" placeholder="押金" />
       <input v-model.number="form.occupantCount" type="number" class="input input-bordered" placeholder="居住人數 *" />
       <input v-model="form.startDateUtc" type="date" class="input input-bordered" />
-      <input v-model="form.endDateUtc" type="date" class="input input-bordered" />
 
+      <input v-model="form.endDateUtc" type="date" class="input input-bordered" />
       <select v-model.number="form.electricityRuleType" class="select select-bordered">
         <option :value="1">電費規則：依度數</option>
         <option :value="2">電費規則：平均</option>
@@ -34,8 +38,7 @@
         <option :value="2">狀態：已到期</option>
         <option :value="3">狀態：已終止</option>
       </select>
-      <input v-model="form.propertyName" class="input input-bordered" placeholder="房源名稱（自動帶入）" disabled />
-      <input v-model="form.propertyAddress" class="input input-bordered" placeholder="房源地址（自動帶入）" disabled />
+      <input v-model="form.propertyName" class="input input-bordered" placeholder="房源/房間（自動帶入）" disabled />
     </div>
 
     <div class="flex gap-2 mb-3">
@@ -45,7 +48,7 @@
     </div>
 
     <table class="table table-zebra">
-      <thead><tr><th>合約編號</th><th>租客</th><th>房源</th><th>月租</th><th></th></tr></thead>
+      <thead><tr><th>合約編號</th><th>租客</th><th>房源/房間</th><th>月租</th><th></th></tr></thead>
       <tbody>
         <tr v-for="c in items" :key="c.id">
           <td>{{ c.contractNo }}</td>
@@ -68,8 +71,10 @@ import api from '../services/api'
 
 const items = ref<any[]>([])
 const properties = ref<any[]>([])
+const rooms = ref<any[]>([])
 const tenants = ref<any[]>([])
 const selectedPropertyId = ref(0)
+const selectedRoomId = ref(0)
 const keyword = ref('')
 const error = ref('')
 
@@ -81,6 +86,7 @@ const seed = () => ({
   contractNo: '',
   tenantId: 0,
   propertyUnitId: null,
+  propertyRoomId: null,
   propertyName: '',
   propertyAddress: '',
   startDateUtc: toDateInput(new Date().toISOString()),
@@ -102,6 +108,11 @@ const loadProperties = async () => {
   const { data } = await api.get('/properties')
   properties.value = data
 }
+const loadRooms = async () => {
+  if (!selectedPropertyId.value) { rooms.value = []; return }
+  const { data } = await api.get('/rooms', { params: { propertyUnitId: selectedPropertyId.value } })
+  rooms.value = data
+}
 const loadTenants = async () => {
   const { data } = await api.get('/tenants')
   tenants.value = data
@@ -114,24 +125,37 @@ onMounted(async () => {
 const reset = () => {
   form.value = seed()
   selectedPropertyId.value = 0
+  selectedRoomId.value = 0
+  rooms.value = []
   error.value = ''
 }
 
-const edit = (c: any) => {
+const edit = async (c: any) => {
   form.value = {
     ...c,
     startDateUtc: toDateInput(c.startDateUtc),
     endDateUtc: toDateInput(c.endDateUtc)
   }
   selectedPropertyId.value = c.propertyUnitId ?? 0
+  await loadRooms()
+  selectedRoomId.value = c.propertyRoomId ?? 0
   error.value = ''
 }
 
-const bindProperty = () => {
+const onPropertyChange = async () => {
+  selectedRoomId.value = 0
+  form.value.propertyRoomId = null
+  form.value.propertyUnitId = selectedPropertyId.value || null
+  await loadRooms()
+}
+
+const bindRoom = () => {
+  const room = rooms.value.find((x: any) => x.id === selectedRoomId.value)
   const p = properties.value.find((x: any) => x.id === selectedPropertyId.value)
-  if (!p) return
+  if (!room || !p) return
+  form.value.propertyRoomId = room.id
   form.value.propertyUnitId = p.id
-  form.value.propertyName = p.name
+  form.value.propertyName = `${p.name}-${room.name || room.code}`
   form.value.propertyAddress = p.address
 }
 
@@ -139,6 +163,7 @@ const validate = () => {
   if (!form.value.contractNo.trim()) return '請輸入合約編號'
   if (!form.value.tenantId) return '請選擇租客'
   if (!selectedPropertyId.value) return '請選擇房源'
+  if (!selectedRoomId.value) return '請選擇房間'
   if (form.value.monthlyRent < 0) return '月租不可小於 0'
   if (form.value.occupantCount <= 0) return '居住人數需大於 0'
   if (!form.value.startDateUtc || !form.value.endDateUtc) return '請選擇起訖日'
@@ -152,6 +177,7 @@ const save = async () => {
   const payload = {
     ...form.value,
     propertyUnitId: selectedPropertyId.value,
+    propertyRoomId: selectedRoomId.value,
     startDateUtc: toIsoDate(form.value.startDateUtc),
     endDateUtc: toIsoDate(form.value.endDateUtc)
   }

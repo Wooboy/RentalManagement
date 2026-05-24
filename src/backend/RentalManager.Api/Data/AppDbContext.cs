@@ -7,6 +7,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 {
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
     public DbSet<PropertyUnit> PropertyUnits => Set<PropertyUnit>();
+    public DbSet<PropertyRoom> PropertyRooms => Set<PropertyRoom>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Contract> Contracts => Set<Contract>();
     public DbSet<ChargeRecord> ChargeRecords => Set<ChargeRecord>();
@@ -26,6 +27,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(x => x.PropertyUnitId)
             .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<Contract>()
+            .HasOne(x => x.PropertyRoom)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyRoomId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<PropertyRoom>()
+            .HasOne(x => x.PropertyUnit)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyUnitId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ChargeRecord>()
             .HasOne(x => x.Contract)
@@ -37,7 +48,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         {
             Id = 1,
             Username = "admin",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123")
+            CreatedAtUtc = new DateTime(2026, 5, 24, 4, 11, 21, 638, DateTimeKind.Utc).AddTicks(8194),
+            PasswordHash = "$2a$11$HlDgIuiyVxHd356KWpNR4OtSocmp5RQNYprtQXuKFl6jBlbaRkq3a"
         });
 
         modelBuilder.Entity<ElectricityBill>()

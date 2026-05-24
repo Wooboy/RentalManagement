@@ -54,6 +54,7 @@
   - 備註
 - 功能
   - 房源新增/編輯/刪除
+  - 房間主從管理：房源底下可新增多間房間
   - 合約建立時可選擇房源，帶入房源名稱與地址
 
 ### 4.4 費用管理
@@ -102,6 +103,9 @@
 ### PropertyUnit
 - Id, Code, Name, Address, Notes, CreatedAt, UpdatedAt
 
+### PropertyRoom
+- Id, PropertyUnitId, Code, Name, Notes, CreatedAt, UpdatedAt
+
 ### ChargeRecord（應收）
 - Id, ContractId, Category(Rent/Water/Electricity/...)
 - BillingStart, BillingEnd
@@ -141,6 +145,7 @@
 - `POST /api/auth/login`
 - `GET/POST/PUT/DELETE /api/tenants`
 - `GET/POST/PUT/DELETE /api/properties`
+- `GET/POST/PUT/DELETE /api/rooms`
 - `GET/POST/PUT/DELETE /api/contracts`
 - `GET/POST /api/charges`
 - `GET/POST /api/expenses`

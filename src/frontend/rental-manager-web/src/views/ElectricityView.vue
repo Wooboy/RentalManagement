@@ -66,9 +66,10 @@
             <td>{{ b.payableTotalAmount }}</td>
             <td class="flex gap-2 justify-end">
               <button class="btn btn-sm" @click="loadBillDetail(b.id)">明細</button>
-              <button class="btn btn-sm btn-accent" :disabled="b.chargesCreated" @click="createCharges(b.id)">
-                {{ b.chargesCreated ? '已轉入' : '轉應收' }}
+              <button class="btn btn-sm btn-accent" :disabled="b.chargesCreated" @click="createCharges(b.id, 'split')">
+                {{ b.chargesCreated ? '已轉入' : '分筆轉入' }}
               </button>
+              <button class="btn btn-sm" :disabled="b.chargesCreated" @click="createCharges(b.id, 'merged')">合併轉入</button>
             </td>
           </tr>
         </tbody>
@@ -180,9 +181,10 @@ const loadBillDetail = async (billId: number) => {
   selectedBillDetail.value = data
 }
 
-const createCharges = async (billId: number) => {
+const createCharges = async (billId: number, mode: 'split' | 'merged') => {
   const bill = bills.value.find((x: any) => x.id === billId)
-  await api.post(`/electricity/bills/${billId}/create-charges`)
+  const params = mode === 'merged' ? { mode: 'merged' } : undefined
+  await api.post(`/electricity/bills/${billId}/create-charges`, null, { params })
   await loadBills()
   if (bill) {
     const d = new Date(bill.billingStartUtc)
