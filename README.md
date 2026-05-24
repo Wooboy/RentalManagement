@@ -4,7 +4,7 @@
 - `docs/spec.md`
 
 ## 後端（.NET 10 + SQLite）
-- 路徑：`backend/RentalManager.Api`
+- 路徑：`src/backend/RentalManager.Api`
 - 啟動：
   - `dotnet run`
 - 預設管理者：
@@ -12,7 +12,7 @@
   - 密碼 `admin123`
 
 ## 前端（Vue3 + DaisyUI）
-- 路徑：`frontend/rental-manager-web`
+- 路徑：`src/frontend/rental-manager-web`
 - 啟動：
   - `npm install`
   - `npm run dev`
