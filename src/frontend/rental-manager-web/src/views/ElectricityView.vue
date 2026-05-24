@@ -482,6 +482,33 @@ const calculate = async () => {
     })
     return
   }
+  if (calcMode.value === 2) {
+    const tenantUnitsTotal = round2(form.value.allocations.reduce((s:number, x:any) => s + Number(x.tenantUnits || 0), 0))
+    const payables = form.value.allocations.map((x:any) => {
+      const ratio = tenantUnitsTotal === 0 ? 0 : Number(x.tenantUnits || 0) / tenantUnitsTotal
+      return Math.round(aggregatedAmount.value * ratio)
+    })
+    const payableTotal = round2(payables.reduce((s:number,v:number)=>s+v,0))
+    const unitPrice = tenantUnitsTotal === 0 ? 0 : round2(aggregatedAmount.value / tenantUnitsTotal)
+    result.value = {
+      unitPrice,
+      privateElectricityAmount: payableTotal,
+      publicElectricityAmount: 0,
+      payableAmount: payableTotal,
+      tenantPayables: payables
+    }
+    form.value.allocations.forEach((x:any, idx:number) => {
+      const ratio = tenantUnitsTotal === 0 ? 0 : Number(x.tenantUnits || 0) / tenantUnitsTotal
+      const payable = payables[idx]
+      x.calcDetail = {
+        privateUnitsText: `本期度數(${md(x.currentReadingDate)}) - 上期度數(${md(x.prevReadingDate)}) = ${round2(Number(x.currentMeter || 0))} - ${round2(Number(x.prevUnits || 0))} = ${round2(Number(x.tenantUnits || 0))}度`,
+        privateAmountText: `應付占比：${round2(Number(x.tenantUnits || 0))} / ${tenantUnitsTotal} = ${round2(ratio * 100)}%`,
+        publicAmountText: `公電費：0元`,
+        totalText: `帳單總額 ${round2(aggregatedAmount.value)} × ${round2(ratio * 100)}% = ${payable}元（四捨五入）`
+      }
+    })
+    return
+  }
   const payload = {
     ruleType: calcMode.value,
     unitPrice: calcMode.value === 1 ? manualUnitPrice.value : undefined,
