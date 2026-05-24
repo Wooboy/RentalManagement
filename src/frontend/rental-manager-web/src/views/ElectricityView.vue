@@ -164,6 +164,10 @@ const resolveBillForAllocation = (a:any) => {
   return selectedBillMap.value.get(Number(a?.expenseBillId || 0))
 }
 const findBillByRoom = (roomId:number) => selectedBills.value.find((b:any) => Number(b.propertyRoomId || 0) === Number(roomId))
+const getLatestSelectedBill = () => {
+  const lastId = selectedExpenseBillIds.value[selectedExpenseBillIds.value.length - 1]
+  return selectedBillMap.value.get(Number(lastId || 0)) || selectedBills.value[selectedBills.value.length - 1]
+}
 
 const addRowFromContract = () => {
   error.value = ''
@@ -209,10 +213,11 @@ const loadExpenseBills = async () => {
 }
 
 const toggleBill = async (bill: any) => {
-  const exists = selectedExpenseBillIds.value.includes(bill.id)
+  const alreadySelected = selectedExpenseBillIds.value.includes(bill.id)
+  const selectingNew = !alreadySelected
   const newlySelectedBillId = Number(bill.id)
   const newlySelectedRoomId = Number(bill.propertyRoomId || 0)
-  if (exists) {
+  if (alreadySelected) {
     selectedExpenseBillIds.value = selectedExpenseBillIds.value.filter(x => x !== bill.id)
   } else {
     if (selectedBills.value.length > 0) {
@@ -285,9 +290,9 @@ const toggleBill = async (bill: any) => {
       tenantId: x.tenantId,
       tenantName: x.tenantName,
       contractLabel: x.label,
-      expenseBillId: (!exists && newlySelectedRoomId > 0 && Number(x.propertyRoomId || 0) === newlySelectedRoomId)
+      expenseBillId: (selectingNew && newlySelectedRoomId > 0 && Number(x.propertyRoomId || 0) === newlySelectedRoomId)
         ? newlySelectedBillId
-        : (findBillByRoom(Number(x.propertyRoomId || 0))?.id || selectedBills.value[0]?.id || 0),
+        : (findBillByRoom(Number(x.propertyRoomId || 0))?.id || getLatestSelectedBill()?.id || 0),
       tenantUnits: 0,
       occupantCount: x.occupantCount || 1,
       occupancyDays: periodDays.value,
@@ -296,18 +301,18 @@ const toggleBill = async (bill: any) => {
       calcDetail: null
     }))
   } else {
-    const exists = new Set(form.value.allocations.map((a:any) => `${a.contractId}:${a.propertyRoomId}`))
+    const existingKeys = new Set(form.value.allocations.map((a:any) => `${a.contractId}:${a.propertyRoomId}`))
     const missing = relatedContractRooms.value
-      .filter((x:any) => !exists.has(`${x.contractId}:${x.propertyRoomId}`))
+      .filter((x:any) => !existingKeys.has(`${x.contractId}:${x.propertyRoomId}`))
       .map((x:any) => ({
         contractId: x.contractId,
         propertyRoomId: x.propertyRoomId,
         tenantId: x.tenantId,
         tenantName: x.tenantName,
         contractLabel: x.label,
-        expenseBillId: (!exists && newlySelectedRoomId > 0 && Number(x.propertyRoomId || 0) === newlySelectedRoomId)
+        expenseBillId: (selectingNew && newlySelectedRoomId > 0 && Number(x.propertyRoomId || 0) === newlySelectedRoomId)
           ? newlySelectedBillId
-          : (findBillByRoom(Number(x.propertyRoomId || 0))?.id || selectedBills.value[0]?.id || 0),
+          : (findBillByRoom(Number(x.propertyRoomId || 0))?.id || getLatestSelectedBill()?.id || 0),
         tenantUnits: 0,
         occupantCount: x.occupantCount || 1,
         occupancyDays: periodDays.value,
@@ -318,7 +323,7 @@ const toggleBill = async (bill: any) => {
     if (missing.length) form.value.allocations.push(...missing)
   }
 
-  if (!exists && newlySelectedRoomId > 0) {
+  if (selectingNew && newlySelectedRoomId > 0) {
     for (const row of form.value.allocations) {
       if (Number(row.propertyRoomId || 0) === newlySelectedRoomId) {
         row.expenseBillId = newlySelectedBillId
