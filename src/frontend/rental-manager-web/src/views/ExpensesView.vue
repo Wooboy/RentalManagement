@@ -26,11 +26,11 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
           <label class="form-control"><span class="label-text mb-1">房源 *</span><select v-model.number="form.propertyUnitId" class="select select-bordered" @change="onPropertyChange">
             <option :value="0">選擇房源</option>
-            <option v-for="p in properties" :key="p.id" :value="p.id">{{ p.code }} - {{ p.name }}</option>
+            <option v-for="p in properties" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">房間（可選）</span><select v-model.number="form.propertyRoomId" class="select select-bordered">
             <option :value="0">不指定房間</option>
-            <option v-for="r in rooms" :key="r.id" :value="r.id">{{ r.code }} - {{ r.name }}</option>
+            <option v-for="r in rooms" :key="r.id" :value="r.id">{{ r.name }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">支出類別</span><select v-model.number="form.category" class="select select-bordered">
             <option :value="1">水費</option><option :value="2">電費</option><option :value="3">瓦斯</option><option :value="4">網路</option><option :value="5">電視</option><option :value="6">管理費</option><option :value="7">停車</option><option :value="8">稅金</option><option :value="9">修繕</option><option :value="99">其他</option>

@@ -5,16 +5,16 @@
       <div class="flex flex-wrap items-end gap-3 mb-3">
         <label class="form-control min-w-72">
           <span class="label-text mb-1">搜尋關鍵字</span>
-          <input v-model="keyword" class="input input-bordered" placeholder="代碼/名稱/地址" />
+          <input v-model="keyword" class="input input-bordered" placeholder="名稱/地址" />
         </label>
         <button class="btn" @click="loadProperties">查詢</button>
         <button class="btn btn-primary" @click="openCreatePropertyModal">新增</button>
       </div>
       <table class="table table-zebra">
-        <thead><tr><th>代碼</th><th>名稱</th><th>地址</th><th></th></tr></thead>
+        <thead><tr><th>名稱</th><th>地址</th><th></th></tr></thead>
         <tbody>
           <tr v-for="p in properties" :key="p.id" :class="selectedPropertyId===p.id ? 'bg-base-200' : ''">
-            <td>{{ p.code }}</td><td>{{ p.name }}</td><td>{{ p.address }}</td>
+            <td>{{ p.name }}</td><td>{{ p.address }}</td>
             <td class="flex gap-2 justify-end">
               <button class="btn btn-sm" @click="selectProperty(p.id)">房間</button>
               <button class="btn btn-sm" @click="editProperty(p)">編輯</button>
@@ -32,10 +32,10 @@
         <button class="btn btn-primary" :disabled="!selectedPropertyId" @click="openCreateRoomModal">新增</button>
       </div>
       <table class="table table-zebra">
-        <thead><tr><th>房間代碼</th><th>房間名稱</th><th>備註</th><th></th></tr></thead>
+        <thead><tr><th>房間名稱</th><th>備註</th><th></th></tr></thead>
         <tbody>
           <tr v-for="r in rooms" :key="r.id">
-            <td>{{ r.code }}</td><td>{{ r.name }}</td><td>{{ r.notes }}</td>
+            <td>{{ r.name }}</td><td>{{ r.notes }}</td>
             <td class="flex gap-2 justify-end">
               <button class="btn btn-sm" @click="editRoom(r)">編輯</button>
               <button class="btn btn-sm btn-error" @click="removeRoom(r.id)">刪除</button>
@@ -49,7 +49,6 @@
       <div class="modal-box max-w-5xl max-h-[85vh] overflow-y-auto">
         <h3 class="font-bold text-lg mb-3">{{ propertyForm.id ? '編輯房源' : '新增房源' }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <label class="form-control"><span class="label-text mb-1">房源代碼</span><input v-model="propertyForm.code" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">房源名稱</span><input v-model="propertyForm.name" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">地址</span><input v-model="propertyForm.address" class="input input-bordered" /></label>
         </div>
@@ -64,7 +63,6 @@
       <div class="modal-box max-w-5xl max-h-[85vh] overflow-y-auto">
         <h3 class="font-bold text-lg mb-3">{{ roomForm.id ? '編輯房間' : '新增房間' }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <label class="form-control"><span class="label-text mb-1">房間代碼</span><input v-model="roomForm.code" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">房間名稱</span><input v-model="roomForm.name" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">備註</span><input v-model="roomForm.notes" class="input input-bordered" /></label>
         </div>
@@ -94,7 +92,7 @@ const roomForm = ref<any>(roomSeed())
 
 const currentPropertyLabel = computed(() => {
   const p = properties.value.find((x:any)=>x.id===selectedPropertyId.value)
-  return p ? `${p.code} - ${p.name}` : '未選擇'
+  return p ? `${p.name}` : '未選擇'
 })
 
 const loadProperties = async()=>{ const {data}=await api.get('/properties',{params:{keyword:keyword.value||undefined}}); properties.value=data }

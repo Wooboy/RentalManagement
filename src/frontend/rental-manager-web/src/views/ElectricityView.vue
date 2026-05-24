@@ -281,7 +281,7 @@ const toggleBill = async (bill: any) => {
       tenantId: c.tenantId,
       tenantName: c.tenant?.name || '',
       occupantCount: c.occupantCount || 1,
-      label: `${c.contractNo} - ${c.tenant?.name || '-'} / ${r.roomCode || ''}${r.roomName ? ` ${r.roomName}` : ''}`
+      label: `${c.contractNo} - ${c.tenant?.name || '-'} / ${r.roomName || ''}`
     }))
   })
   selectedContractForAdd.value = relatedContractRooms.value[0]?.key || ''
