@@ -96,7 +96,9 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../services/api'
+const router = useRouter()
 
 const contracts = ref<any[]>([])
 const bills = ref<any[]>([])
@@ -179,8 +181,13 @@ const loadBillDetail = async (billId: number) => {
 }
 
 const createCharges = async (billId: number) => {
+  const bill = bills.value.find((x: any) => x.id === billId)
   await api.post(`/electricity/bills/${billId}/create-charges`)
   await loadBills()
+  if (bill) {
+    const d = new Date(bill.billingStartUtc)
+    await router.push({ path: '/charges', query: { year: String(d.getUTCFullYear()), month: String(d.getUTCMonth() + 1) } })
+  }
 }
 
 onMounted(async () => {

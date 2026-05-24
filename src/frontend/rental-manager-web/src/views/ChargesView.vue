@@ -4,7 +4,7 @@
     <div class="flex gap-2 mb-3">
       <input v-model.number="year" class="input input-bordered" type="number" placeholder="年" />
       <input v-model.number="month" class="input input-bordered" type="number" placeholder="月" />
-      <button class="btn" @click="load">查詢</button>
+      <button class="btn" @click="search">查詢</button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
@@ -46,7 +46,10 @@
 </template>
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+const route = useRoute()
+const router = useRouter()
 const now = new Date()
 const year = ref(now.getUTCFullYear())
 const month = ref(now.getUTCMonth()+1)
@@ -59,7 +62,14 @@ const seed = ()=>({ id:0, contractId:0, category:1, billingStartUtc:toDateInput(
 const form = ref<any>(seed())
 const load = async()=>{ const {data}=await api.get('/charges',{params:{year:year.value,month:month.value}}); items.value=data }
 const loadContracts = async()=>{ const {data}=await api.get('/contracts'); contracts.value=data }
-onMounted(async()=>{ await Promise.all([load(),loadContracts()]) })
+const applyQueryFilter = () => {
+  const qYear = Number(route.query.year)
+  const qMonth = Number(route.query.month)
+  if (!Number.isNaN(qYear) && qYear > 0) year.value = qYear
+  if (!Number.isNaN(qMonth) && qMonth >= 1 && qMonth <= 12) month.value = qMonth
+}
+onMounted(async()=>{ applyQueryFilter(); await Promise.all([load(),loadContracts()]) })
+const search = async()=>{ await router.replace({ query: { year: String(year.value), month: String(month.value) } }); await load() }
 const reset = ()=>{ form.value=seed(); error.value='' }
 const edit = (c:any)=>{ form.value={...c,billingStartUtc:toDateInput(c.billingStartUtc),billingEndUtc:toDateInput(c.billingEndUtc)}; error.value='' }
 const validate = ()=>{ if(!form.value.contractId) return '請選擇合約'; if(form.value.amount<0) return '金額不可小於0'; if(!form.value.billingStartUtc||!form.value.billingEndUtc) return '請輸入帳期'; if(form.value.meterStart!=null && form.value.meterEnd!=null && form.value.meterEnd<form.value.meterStart) return '錶末不可小於錶初'; return '' }
