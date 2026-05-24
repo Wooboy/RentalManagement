@@ -35,8 +35,8 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
       <label class="form-control"><span class="label-text mb-1">押金</span><input v-model.number="form.deposit" type="number" class="input input-bordered" placeholder="請輸入" /></label>
       <label class="form-control"><span class="label-text mb-1">居住人數 *</span><input v-model.number="form.occupantCount" type="number" class="input input-bordered" placeholder="請輸入" /></label>
-      <label class="form-control"><span class="label-text mb-1">合約起始</span><input v-model="form.startDateUtc" type="date" class="input input-bordered" /></label>
-      <label class="form-control"><span class="label-text mb-1">合約終止</span><input v-model="form.endDateUtc" type="date" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">合約起始</span><input v-model="form.startDateUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">合約終止</span><input v-model="form.endDateUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
       <label class="form-control"><span class="label-text mb-1">電費規則</span><select v-model.number="form.electricityRuleType" class="select select-bordered">
         <option :value="1">電費規則：依度數</option><option :value="2">電費規則：平均</option><option :value="3">電費規則：多錶</option>
       </select></label>

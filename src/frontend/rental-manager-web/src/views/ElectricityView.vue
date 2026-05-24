@@ -8,8 +8,8 @@
           <option :value="0">選擇合約 *</option>
           <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.contractNo }} - {{ c.propertyName }}</option>
         </select></label>
-        <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStart" type="date" class="input input-bordered" /></label>
-        <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEnd" type="date" class="input input-bordered" /></label>
+        <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStart" type="date" max="2099-12-31" class="input input-bordered" /></label>
+        <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEnd" type="date" max="2099-12-31" class="input input-bordered" /></label>
         <label class="form-control"><span class="label-text mb-1">總金額</span><input v-model.number="form.totalAmount" type="number" class="input input-bordered" placeholder="請輸入" /></label>
         <label class="form-control"><span class="label-text mb-1">總度數</span><input v-model.number="form.totalUnits" type="number" class="input input-bordered" placeholder="請輸入" /></label>
       </div>

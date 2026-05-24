@@ -15,8 +15,8 @@
       <label class="form-control"><span class="label-text mb-1">類別</span><select v-model.number="form.category" class="select select-bordered">
         <option :value="1">租金</option><option :value="2">水費</option><option :value="3">電費</option><option :value="99">其他</option>
       </select></label>
-      <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" class="input input-bordered" /></label>
-      <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEndUtc" type="date" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEndUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
       <label class="form-control"><span class="label-text mb-1">金額 *</span><input v-model.number="form.amount" type="number" class="input input-bordered" placeholder="請輸入" /></label>
       <label class="form-control"><span class="label-text mb-1">錶初讀數</span><input v-model.number="form.meterStart" type="number" class="input input-bordered" placeholder="請輸入" /></label>
       <label class="form-control"><span class="label-text mb-1">錶末讀數</span><input v-model.number="form.meterEnd" type="number" class="input input-bordered" placeholder="請輸入" /></label>

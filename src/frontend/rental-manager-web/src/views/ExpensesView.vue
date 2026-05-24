@@ -11,11 +11,11 @@
       <label class="form-control"><span class="label-text mb-1">支出類別</span><select v-model.number="form.category" class="select select-bordered">
         <option :value="1">水費</option><option :value="2">電費</option><option :value="3">瓦斯</option><option :value="4">網路</option><option :value="5">電視</option><option :value="6">管理費</option><option :value="7">停車</option><option :value="8">稅金</option><option :value="9">修繕</option><option :value="99">其他</option>
       </select></label>
-      <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" class="input input-bordered" /></label>
-      <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEndUtc" type="date" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEndUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
       <label class="form-control"><span class="label-text mb-1">金額 *</span><input v-model.number="form.amount" type="number" class="input input-bordered" placeholder="請輸入" /></label>
       <label class="form-control"><span class="label-text mb-1">備註</span><input v-model="form.notes" class="input input-bordered" placeholder="請輸入" /></label>
-      <label class="form-control"><span class="label-text mb-1">發生日</span><input v-model="form.occurredAtUtc" type="date" class="input input-bordered" /></label>
+      <label class="form-control"><span class="label-text mb-1">發生日</span><input v-model="form.occurredAtUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
     </div>
 
     <div class="flex gap-2 mb-3">
