@@ -133,4 +133,85 @@ public class ElectricityController(AppDbContext db) : ControllerBase
 
         return Ok(rows);
     }
+
+    [HttpGet("bills/{billId:int}")]
+    public async Task<ActionResult<object>> GetBillDetail(int billId)
+    {
+        var bill = await db.ElectricityBills
+            .Include(x => x.Contract)
+            .FirstOrDefaultAsync(x => x.Id == billId);
+        if (bill is null) return NotFound();
+
+        var allocations = await db.ElectricityAllocations
+            .Include(x => x.Tenant)
+            .Where(x => x.ElectricityBillId == billId)
+            .OrderBy(x => x.Id)
+            .Select(x => new
+            {
+                x.Id,
+                x.TenantId,
+                TenantName = x.Tenant != null ? x.Tenant.Name : null,
+                x.TenantUnits,
+                x.OccupantCount,
+                x.OccupancyDays,
+                x.PrivateAmount,
+                x.PublicAmount,
+                x.PayableAmount
+            }).ToListAsync();
+
+        return Ok(new
+        {
+            bill.Id,
+            bill.ContractId,
+            ContractNo = bill.Contract!.ContractNo,
+            bill.BillingStartUtc,
+            bill.BillingEndUtc,
+            bill.TotalAmount,
+            bill.TotalUnits,
+            bill.UnitPrice,
+            bill.PrivateTotalAmount,
+            bill.PublicTotalAmount,
+            bill.PayableTotalAmount,
+            allocations
+        });
+    }
+
+    [HttpPost("bills/{billId:int}/create-charges")]
+    public async Task<ActionResult<object>> CreateChargesFromBill(int billId)
+    {
+        var bill = await db.ElectricityBills.FirstOrDefaultAsync(x => x.Id == billId);
+        if (bill is null) return NotFound("帳單不存在");
+
+        var contract = await db.Contracts
+            .Include(x => x.Tenant)
+            .FirstOrDefaultAsync(x => x.Id == bill.ContractId);
+        if (contract is null) return BadRequest("關聯合約不存在");
+
+        var allocations = await db.ElectricityAllocations
+            .Where(x => x.ElectricityBillId == billId)
+            .ToListAsync();
+        if (allocations.Count == 0) return BadRequest("無分攤資料");
+
+        var created = 0;
+        foreach (var a in allocations)
+        {
+            var charge = new ChargeRecord
+            {
+                ContractId = bill.ContractId,
+                Category = ChargeCategory.Electricity,
+                BillingStartUtc = bill.BillingStartUtc,
+                BillingEndUtc = bill.BillingEndUtc,
+                UsageUnits = a.TenantUnits,
+                Amount = a.PayableAmount,
+                Notes = $"電費帳單#{billId} 分攤；租客ID={a.TenantId?.ToString() ?? "N/A"}",
+                IsPaid = false,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+            db.ChargeRecords.Add(charge);
+            created++;
+        }
+
+        await db.SaveChangesAsync();
+        return Ok(new { createdCount = created });
+    }
 }

@@ -54,7 +54,7 @@
         <button class="btn" @click="loadBills">查詢</button>
       </div>
       <table class="table table-zebra">
-        <thead><tr><th>ID</th><th>合約</th><th>帳期</th><th>總金額</th><th>總度數</th><th>每度</th><th>應繳總額</th></tr></thead>
+        <thead><tr><th>ID</th><th>合約</th><th>帳期</th><th>總金額</th><th>總度數</th><th>每度</th><th>應繳總額</th><th></th></tr></thead>
         <tbody>
           <tr v-for="b in bills" :key="b.id">
             <td>{{ b.id }}</td>
@@ -64,6 +64,27 @@
             <td>{{ b.totalUnits }}</td>
             <td>{{ b.unitPrice }}</td>
             <td>{{ b.payableTotalAmount }}</td>
+            <td class="flex gap-2 justify-end">
+              <button class="btn btn-sm" @click="loadBillDetail(b.id)">明細</button>
+              <button class="btn btn-sm btn-accent" @click="createCharges(b.id)">轉應收</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card bg-base-100 shadow p-4" v-if="selectedBillDetail">
+      <h3 class="font-bold mb-3">帳單明細 #{{ selectedBillDetail.id }}</h3>
+      <p class="text-sm mb-2">合約：{{ selectedBillDetail.contractNo }}，每度：{{ selectedBillDetail.unitPrice }}</p>
+      <table class="table table-zebra">
+        <thead><tr><th>租客</th><th>度數</th><th>私電</th><th>公電</th><th>應繳</th></tr></thead>
+        <tbody>
+          <tr v-for="a in selectedBillDetail.allocations" :key="a.id">
+            <td>{{ a.tenantName || a.tenantId || '-' }}</td>
+            <td>{{ a.tenantUnits }}</td>
+            <td>{{ a.privateAmount }}</td>
+            <td>{{ a.publicAmount }}</td>
+            <td>{{ a.payableAmount }}</td>
           </tr>
         </tbody>
       </table>
@@ -80,6 +101,7 @@ const bills = ref<any[]>([])
 const billFilterContractId = ref(0)
 const error = ref('')
 const result = ref<any>(null)
+const selectedBillDetail = ref<any>(null)
 
 const today = new Date().toISOString().slice(0, 10)
 const form = ref<any>({
@@ -147,6 +169,15 @@ const loadBills = async () => {
   const params = billFilterContractId.value ? { contractId: billFilterContractId.value } : undefined
   const { data } = await api.get('/electricity/bills', { params })
   bills.value = data
+}
+
+const loadBillDetail = async (billId: number) => {
+  const { data } = await api.get(`/electricity/bills/${billId}`)
+  selectedBillDetail.value = data
+}
+
+const createCharges = async (billId: number) => {
+  await api.post(`/electricity/bills/${billId}/create-charges`)
 }
 
 onMounted(async () => {
