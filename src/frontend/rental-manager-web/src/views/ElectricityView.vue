@@ -18,7 +18,7 @@
       </div>
 
       <div class="overflow-x-auto mb-3">
-        <p class="text-sm mb-2">2. 選擇電費帳單（可多選）</p>
+        <p class="text-sm mb-2">2. 選擇電費帳單（{{ calcMode === 3 ? '可多選' : '僅可單選' }}）</p>
         <table class="table table-zebra">
           <thead><tr><th></th><th>帳單ID</th><th>帳期</th><th>金額</th><th>度數</th><th>房源/房間</th></tr></thead>
           <tbody>
@@ -41,6 +41,13 @@
         <label class="form-control"><span class="label-text mb-1">總度數（加總）</span><input :value="aggregatedUnits" type="number" class="input input-bordered" disabled /></label>
       </div>
 
+      <div v-if="calcMode === 1" class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
+        <label class="form-control">
+          <span class="label-text mb-1">依度數計算單價（元/度）</span>
+          <input v-model.number="manualUnitPrice" type="number" class="input input-bordered" />
+        </label>
+      </div>
+
       <div class="overflow-x-auto">
         <p class="text-sm mb-2">3. 關聯租約（自動帶入，可調整）</p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
@@ -48,7 +55,7 @@
             <span class="label-text mb-1">新增列：從租約選擇房間</span>
             <select v-model="selectedContractForAdd" class="select select-bordered">
               <option value="">請選擇租約/房間</option>
-              <option v-for="c in relatedContractRooms" :key="c.key" :value="c.key">{{ c.label }}</option>
+              <option v-for="c in availableContractRoomsForAdd" :key="c.key" :value="c.key">{{ c.label }}</option>
             </select>
           </label>
           <div class="form-control justify-end">
@@ -135,10 +142,12 @@ const selectedExpenseBillIds = ref<number[]>([])
 const electricityExpenseBills = ref<any[]>([])
 const relatedContracts = ref<any[]>([])
 const relatedContractRooms = ref<any[]>([])
+const allContractRooms = ref<any[]>([])
 const selectedContractForAdd = ref<string>('')
 const error = ref('')
 const notice = ref('')
 const result = ref<any>(null)
+const manualUnitPrice = ref<number>(0)
 const today = new Date().toISOString().slice(0, 10)
 const form = ref<any>({ contractId: 0, billingStart: today, billingEnd: today, allocations: [] })
 const meterEditor = ref<any>({ open: false, rowIndex: -1, prevDate: '', currentDate: '', prevUnits: 0, currentMeter: 0 })
@@ -153,6 +162,10 @@ const md = (v?:string) => {
 }
 
 const selectedBills = computed(() => electricityExpenseBills.value.filter((x:any)=>selectedExpenseBillIds.value.includes(x.id)))
+const availableContractRoomsForAdd = computed(() => {
+  if (calcMode.value === 1 && selectedExpenseBillIds.value.length === 0) return allContractRooms.value
+  return relatedContractRooms.value
+})
 const selectedBillMap = computed(() => new Map<number, any>(selectedBills.value.map((b:any)=>[b.id,b])))
 const aggregatedAmount = computed(() => selectedBills.value.reduce((s:number,b:any)=>s + Number(b.amount || 0), 0))
 const aggregatedUnits = computed(() => selectedBills.value.reduce((s:number,b:any)=>s + Number(b.usageUnits || 0), 0))
@@ -174,7 +187,7 @@ const getLatestSelectedBill = () => {
 
 const addRowFromContract = () => {
   error.value = ''
-  const pick = relatedContractRooms.value.find((x:any) => x.key === selectedContractForAdd.value)
+  const pick = availableContractRoomsForAdd.value.find((x:any) => x.key === selectedContractForAdd.value)
   if (!pick) {
     error.value = '請先選擇租約/房間再新增'
     return
@@ -215,6 +228,33 @@ const loadExpenseBills = async () => {
     })
 }
 
+const loadAllContracts = async () => {
+  const { data } = await api.get('/contracts')
+  allContractRooms.value = data.flatMap((c:any) => {
+    const rooms = Array.isArray(c.rooms) ? c.rooms : []
+    if (!rooms.length) {
+      return [{
+        key: `${c.id}:0`,
+        contractId: c.id,
+        propertyRoomId: 0,
+        tenantId: c.tenantId,
+        tenantName: c.tenant?.name || '',
+        occupantCount: c.occupantCount || 1,
+        label: `${c.contractNo} - ${c.tenant?.name || '-'}`
+      }]
+    }
+    return rooms.map((r:any) => ({
+      key: `${c.id}:${r.propertyRoomId}`,
+      contractId: c.id,
+      propertyRoomId: r.propertyRoomId,
+      tenantId: c.tenantId,
+      tenantName: c.tenant?.name || '',
+      occupantCount: c.occupantCount || 1,
+      label: `${c.contractNo} - ${c.tenant?.name || '-'} / ${r.roomName || ''}`
+    }))
+  })
+}
+
 const toggleBill = async (bill: any) => {
   const alreadySelected = selectedExpenseBillIds.value.includes(bill.id)
   const selectingNew = !alreadySelected
@@ -223,6 +263,9 @@ const toggleBill = async (bill: any) => {
   if (alreadySelected) {
     selectedExpenseBillIds.value = selectedExpenseBillIds.value.filter(x => x !== bill.id)
   } else {
+    if (calcMode.value === 1 || calcMode.value === 2) {
+      selectedExpenseBillIds.value = [bill.id]
+    } else {
     if (selectedBills.value.length > 0) {
       const first = selectedBills.value[0]
       const samePeriod = first.billingStartUtc?.slice(0,10) === bill.billingStartUtc?.slice(0,10) &&
@@ -233,6 +276,7 @@ const toggleBill = async (bill: any) => {
       }
     }
     selectedExpenseBillIds.value.push(bill.id)
+    }
   }
 
   error.value = ''
@@ -362,13 +406,17 @@ const saveMeterEditor = () => {
 
 const validate = () => {
   if (!calcMode.value) return '請選擇計算方式'
-  if (!selectedExpenseBillIds.value.length) return '請選擇至少一張電費帳單'
+  if ((calcMode.value === 2 || calcMode.value === 3) && !selectedExpenseBillIds.value.length) return '請選擇至少一張電費帳單'
+  if ((calcMode.value === 1 || calcMode.value === 2) && selectedExpenseBillIds.value.length > 1) return '此計算方式僅可選擇一張帳單'
+  if (calcMode.value === 1 && Number(manualUnitPrice.value || 0) <= 0) return '依度數計算請輸入單價'
   if (calcMode.value === 3 && aggregatedUnits.value <= 0) return '多錶計算需有總度數'
   if (!form.value.allocations.length) return '請確認租客名單'
   if (form.value.allocations.some((x:any)=>!x.tenantId)) return '租客不可為空'
-  if (form.value.allocations.some((x:any)=>!x.expenseBillId)) return '每筆租客需指定歸屬帳單'
-  if (form.value.allocations.some((x:any)=>!selectedExpenseBillIds.value.includes(Number(x.expenseBillId)))) return '租客歸屬帳單必須在已勾選帳單內'
-  if (!(form.value.contractId || relatedContracts.value[0]?.id)) return '找不到可用合約，請先確認帳單歸屬房源是否已有合約'
+  if (!(calcMode.value === 1 && selectedExpenseBillIds.value.length === 0)) {
+    if (form.value.allocations.some((x:any)=>!x.expenseBillId)) return '每筆租客需指定歸屬帳單'
+    if (form.value.allocations.some((x:any)=>!selectedExpenseBillIds.value.includes(Number(x.expenseBillId)))) return '租客歸屬帳單必須在已勾選帳單內'
+  }
+  if (!(form.value.contractId || relatedContracts.value[0]?.id || form.value.allocations[0]?.contractId)) return '找不到可用合約，請先確認合約資料'
   return ''
 }
 
@@ -412,8 +460,31 @@ const calculate = async () => {
     }
     return
   }
+  if (calcMode.value === 1) {
+    const unitPrice = round2(Number(manualUnitPrice.value || 0))
+    const privateAmounts = form.value.allocations.map((x:any) => round2(Number(x.tenantUnits || 0) * unitPrice))
+    const privateTotal = round2(privateAmounts.reduce((s:number,v:number)=>s+v,0))
+    result.value = {
+      unitPrice,
+      privateElectricityAmount: privateTotal,
+      publicElectricityAmount: 0,
+      payableAmount: trunc2(privateTotal),
+      tenantPayables: privateAmounts.map((x:number)=>trunc0(x))
+    }
+    form.value.allocations.forEach((x:any, idx:number) => {
+      const payable = trunc0(privateAmounts[idx])
+      x.calcDetail = {
+        privateUnitsText: `本期度數(${md(x.currentReadingDate)}) - 上期度數(${md(x.prevReadingDate)}) = ${round2(Number(x.currentMeter || 0))} - ${round2(Number(x.prevUnits || 0))} = ${round2(Number(x.tenantUnits || 0))}度`,
+        privateAmountText: `${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
+        publicAmountText: `公電費：0元`,
+        totalText: `${privateAmounts[idx]} = ${payable}元`
+      }
+    })
+    return
+  }
   const payload = {
     ruleType: calcMode.value,
+    unitPrice: calcMode.value === 1 ? manualUnitPrice.value : undefined,
     billAmount: aggregatedAmount.value,
     totalUnits: aggregatedUnits.value,
     tenants: form.value.allocations.map((x: any) => ({ tenantUnits: x.tenantUnits, occupantCount: x.occupantCount, occupancyDays: x.occupancyDays }))
@@ -451,4 +522,5 @@ const saveBill = async () => {
 }
 
 onMounted(loadExpenseBills)
+onMounted(loadAllContracts)
 </script>
