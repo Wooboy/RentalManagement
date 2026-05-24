@@ -21,9 +21,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 
+const route = useRoute()
 const router = useRouter()
 const username = ref('admin')
 const password = ref('admin123')
@@ -37,7 +38,8 @@ const login = async () => {
     localStorage.setItem('auth_username', data.username)
     isError.value = false
     message.value = `登入成功：${data.username}`
-    await router.push('/')
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    await router.push(redirect)
   } catch (e: any) {
     isError.value = true
     message.value = e?.response?.data || '登入失敗'

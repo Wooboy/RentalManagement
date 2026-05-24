@@ -1,4 +1,4 @@
-﻿import type { RouteRecordRaw } from 'vue-router'
+﻿import type { RouteRecordRaw, Router } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import DashboardView from '../views/DashboardView.vue'
 import TenantsView from '../views/TenantsView.vue'
@@ -18,3 +18,20 @@ export const routes: RouteRecordRaw[] = [
   { path: '/expenses', component: ExpensesView },
   { path: '/electricity', component: ElectricityView }
 ]
+
+export const applyAuthGuard = (router: Router) => {
+  router.beforeEach((to) => {
+    const token = localStorage.getItem('token')
+    const isLoginPage = to.path === '/login'
+
+    if (!token && !isLoginPage) {
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
+
+    if (token && isLoginPage) {
+      return typeof to.query.redirect === 'string' ? to.query.redirect : '/'
+    }
+
+    return true
+  })
+}
