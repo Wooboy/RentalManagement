@@ -1,30 +1,46 @@
 ﻿<template>
-  <div class="card bg-base-100 shadow p-6 max-w-md">
-    <h2 class="text-xl font-bold mb-4">管理者登入</h2>
-    <label class="form-control mb-3">
-      <span class="label-text mb-1">帳號</span>
-      <input v-model="username" class="input input-bordered" placeholder="請輸入帳號" />
-    </label>
-    <label class="form-control mb-3">
-      <span class="label-text mb-1">密碼</span>
-      <input v-model="password" type="password" class="input input-bordered" placeholder="請輸入密碼" />
-    </label>
-    <button class="btn btn-primary" @click="login">登入</button>
-    <p class="text-sm mt-3">{{ message }}</p>
+  <div class="min-h-screen bg-base-200 flex items-center justify-center p-6">
+    <div class="w-full max-w-md card bg-base-100 shadow-xl border border-base-300">
+      <div class="card-body">
+        <p class="text-xs uppercase tracking-wider text-base-content/60">Rental Manager</p>
+        <h2 class="text-2xl font-bold mb-2">管理者登入</h2>
+        <label class="form-control mb-3">
+          <span class="label-text mb-1">帳號</span>
+          <input v-model="username" class="input input-bordered" placeholder="請輸入帳號" />
+        </label>
+        <label class="form-control mb-4">
+          <span class="label-text mb-1">密碼</span>
+          <input v-model="password" type="password" class="input input-bordered" placeholder="請輸入密碼" />
+        </label>
+        <button class="btn btn-primary" @click="login">登入</button>
+        <p class="text-sm mt-3" :class="isError ? 'text-error' : 'text-success'">{{ message }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../services/api'
 
+const router = useRouter()
 const username = ref('admin')
 const password = ref('admin123')
 const message = ref('')
+const isError = ref(false)
 
 const login = async () => {
-  const { data } = await api.post('/auth/login', { username: username.value, password: password.value })
-  localStorage.setItem('token', data.token)
-  message.value = `登入成功：${data.username}`
+  try {
+    const { data } = await api.post('/auth/login', { username: username.value, password: password.value })
+    localStorage.setItem('token', data.token)
+    localStorage.setItem('auth_username', data.username)
+    isError.value = false
+    message.value = `登入成功：${data.username}`
+    await router.push('/')
+  } catch (e: any) {
+    isError.value = true
+    message.value = e?.response?.data || '登入失敗'
+  }
 }
 </script>
