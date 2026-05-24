@@ -7,6 +7,7 @@ import ContractsView from '../views/ContractsView.vue'
 import ChargesView from '../views/ChargesView.vue'
 import ExpensesView from '../views/ExpensesView.vue'
 import ElectricityView from '../views/ElectricityView.vue'
+import AdminUsersView from '../views/AdminUsersView.vue'
 
 export const routes: RouteRecordRaw[] = [
   { path: '/', component: DashboardView },
@@ -16,12 +17,14 @@ export const routes: RouteRecordRaw[] = [
   { path: '/contracts', component: ContractsView },
   { path: '/charges', component: ChargesView },
   { path: '/expenses', component: ExpensesView },
-  { path: '/electricity', component: ElectricityView }
+  { path: '/electricity', component: ElectricityView },
+  { path: '/admin-users', component: AdminUsersView, meta: { requiresAdmin: true } }
 ]
 
 export const applyAuthGuard = (router: Router) => {
   router.beforeEach((to) => {
     const token = localStorage.getItem('token')
+    const role = localStorage.getItem('auth_role')
     const isLoginPage = to.path === '/login'
 
     if (!token && !isLoginPage) {
@@ -30,6 +33,10 @@ export const applyAuthGuard = (router: Router) => {
 
     if (token && isLoginPage) {
       return typeof to.query.redirect === 'string' ? to.query.redirect : '/'
+    }
+
+    if (to.meta.requiresAdmin && role !== '1') {
+      return '/'
     }
 
     return true

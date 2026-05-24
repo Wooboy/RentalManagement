@@ -3,7 +3,7 @@
     <div class="w-full max-w-md card bg-base-100 shadow-xl border border-base-300">
       <div class="card-body">
         <p class="text-xs uppercase tracking-wider text-base-content/60">Rental Manager</p>
-        <h2 class="text-2xl font-bold mb-2">管理者登入</h2>
+        <h2 class="text-2xl font-bold mb-2">使用者登入</h2>
         <label class="form-control mb-3">
           <span class="label-text mb-1">帳號</span>
           <input v-model="username" class="input input-bordered" placeholder="請輸入帳號" />
@@ -35,7 +35,9 @@ const login = async () => {
   try {
     const { data } = await api.post('/auth/login', { username: username.value, password: password.value })
     localStorage.setItem('token', data.token)
+    localStorage.setItem('auth_user_id', String(data.userId))
     localStorage.setItem('auth_username', data.username)
+    localStorage.setItem('auth_role', String(data.role))
     isError.value = false
     message.value = `登入成功：${data.username}`
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
