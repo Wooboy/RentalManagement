@@ -16,7 +16,7 @@ public class RoomsController(AppDbContext db) : ControllerBase
     {
         var query = db.PropertyRooms.Include(x => x.PropertyUnit).AsQueryable();
         if (propertyUnitId.HasValue) query = query.Where(x => x.PropertyUnitId == propertyUnitId.Value);
-        return Ok(await query.OrderBy(x => x.PropertyUnitId).ThenBy(x => x.Code).ToListAsync());
+        return Ok(await query.OrderBy(x => x.PropertyUnitId).ThenBy(x => x.Name).ThenBy(x => x.Id).ToListAsync());
     }
 
     [HttpPost]
@@ -24,7 +24,9 @@ public class RoomsController(AppDbContext db) : ControllerBase
     {
         if (model.PropertyUnitId <= 0) return BadRequest("請選擇房源");
         if (!await db.PropertyUnits.AnyAsync(x => x.Id == model.PropertyUnitId)) return BadRequest("房源不存在");
-        if (string.IsNullOrWhiteSpace(model.Code) && string.IsNullOrWhiteSpace(model.Name)) return BadRequest("房間代碼或名稱至少填一項");
+        if (string.IsNullOrWhiteSpace(model.Name)) return BadRequest("請輸入房間名稱");
+
+        model.Code = string.IsNullOrWhiteSpace(model.Code) ? $"R{DateTime.UtcNow:yyyyMMddHHmmss}" : model.Code.Trim();
 
         model.CreatedAtUtc = DateTime.UtcNow;
         model.UpdatedAtUtc = DateTime.UtcNow;
@@ -40,9 +42,13 @@ public class RoomsController(AppDbContext db) : ControllerBase
         if (item is null) return NotFound();
         if (model.PropertyUnitId <= 0) return BadRequest("請選擇房源");
         if (!await db.PropertyUnits.AnyAsync(x => x.Id == model.PropertyUnitId)) return BadRequest("房源不存在");
+        if (string.IsNullOrWhiteSpace(model.Name)) return BadRequest("請輸入房間名稱");
 
         item.PropertyUnitId = model.PropertyUnitId;
-        item.Code = model.Code;
+        if (!string.IsNullOrWhiteSpace(model.Code))
+        {
+            item.Code = model.Code.Trim();
+        }
         item.Name = model.Name;
         item.Notes = model.Notes;
         item.UpdatedAtUtc = DateTime.UtcNow;

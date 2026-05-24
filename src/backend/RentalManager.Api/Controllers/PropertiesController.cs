@@ -17,10 +17,10 @@ public class PropertiesController(AppDbContext db) : ControllerBase
         var query = db.PropertyUnits.AsQueryable();
         if (!string.IsNullOrWhiteSpace(keyword))
         {
-            query = query.Where(x => x.Code.Contains(keyword) || x.Name.Contains(keyword) || x.Address.Contains(keyword));
+            query = query.Where(x => x.Name.Contains(keyword) || x.Address.Contains(keyword));
         }
 
-        return Ok(await query.OrderByDescending(x => x.Id).ToListAsync());
+        return Ok(await query.OrderBy(x => x.Name).ThenBy(x => x.Id).ToListAsync());
     }
 
     [HttpGet("{id:int}")]
@@ -33,6 +33,7 @@ public class PropertiesController(AppDbContext db) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<PropertyUnit>> Create(PropertyUnit model)
     {
+        model.Code = string.IsNullOrWhiteSpace(model.Code) ? $"P{DateTime.UtcNow:yyyyMMddHHmmss}" : model.Code.Trim();
         model.CreatedAtUtc = DateTime.UtcNow;
         model.UpdatedAtUtc = DateTime.UtcNow;
         db.PropertyUnits.Add(model);
@@ -46,7 +47,10 @@ public class PropertiesController(AppDbContext db) : ControllerBase
         var item = await db.PropertyUnits.FindAsync(id);
         if (item is null) return NotFound();
 
-        item.Code = model.Code;
+        if (!string.IsNullOrWhiteSpace(model.Code))
+        {
+            item.Code = model.Code.Trim();
+        }
         item.Name = model.Name;
         item.Address = model.Address;
         item.Notes = model.Notes;

@@ -1,6 +1,7 @@
 ﻿namespace RentalManager.Api.Models;
 
 public enum TenantType { Person = 1, Company = 2 }
+public enum UserRoleType { Admin = 1, Tenant = 2 }
 public enum ContractStatus { Active = 1, Expired = 2, Terminated = 3 }
 public enum PaymentIntervalType { Monthly = 1, Quarterly = 3, Yearly = 12 }
 public enum ElectricityRuleType { Unit = 1, Average = 2, MultiMeter = 3 }
@@ -12,6 +13,7 @@ public class AdminUser
     public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
+    public UserRoleType Role { get; set; } = UserRoleType.Admin;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 

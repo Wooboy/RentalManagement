@@ -41,7 +41,7 @@
           </select></label>
           <label class="form-control"><span class="label-text mb-1">房源 *</span><select v-model.number="selectedPropertyId" class="select select-bordered" @change="onPropertyChange">
             <option :value="0">選擇房源 *</option>
-            <option v-for="p in properties" :key="p.id" :value="p.id">{{ p.code }} - {{ p.name }}</option>
+            <option v-for="p in properties" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">月租 *</span><input v-model.number="form.monthlyRent" type="number" class="input input-bordered" placeholder="請輸入" /></label>
           <label class="form-control"><span class="label-text mb-1">付款間隔</span><select v-model.number="form.paymentIntervalMonths" class="select select-bordered">
@@ -55,7 +55,7 @@
           <div class="flex flex-wrap gap-3">
             <label v-for="r in rooms" :key="r.id" class="label cursor-pointer gap-2">
               <input type="checkbox" class="checkbox checkbox-sm" :value="r.id" v-model="selectedRoomIds" />
-              <span>{{ r.code }} - {{ r.name }}</span>
+              <span>{{ r.name }}</span>
             </label>
           </div>
         </div>
