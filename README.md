@@ -19,9 +19,9 @@
 
 ## 已實作 API（v1）
 - `POST /api/auth/login`
-- `GET/POST /api/tenants`
-- `GET/POST /api/contracts`
-- `GET/POST /api/charges`
-- `GET/POST /api/expenses`
+- `GET/POST/PUT/DELETE /api/tenants`（含 `keyword` 查詢）
+- `GET/POST/PUT/DELETE /api/contracts`（含 `keyword` 查詢）
+- `GET/POST/PUT/DELETE /api/charges`（含 `year/month` 查詢）
+- `GET/POST/PUT/DELETE /api/expenses`（含 `year/month` 查詢）
 - `POST /api/electricity/calculate`
 - `GET /api/reports/monthly`

@@ -12,7 +12,23 @@ namespace RentalManager.Api.Controllers;
 public class TenantsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Tenant>>> GetAll() => Ok(await db.Tenants.OrderByDescending(x => x.Id).ToListAsync());
+    public async Task<ActionResult<IEnumerable<Tenant>>> GetAll([FromQuery] string? keyword)
+    {
+        var query = db.Tenants.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            query = query.Where(x => x.Name.Contains(keyword) || (x.Phone != null && x.Phone.Contains(keyword)));
+        }
+
+        return Ok(await query.OrderByDescending(x => x.Id).ToListAsync());
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<Tenant>> GetById(int id)
+    {
+        var item = await db.Tenants.FindAsync(id);
+        return item is null ? NotFound() : Ok(item);
+    }
 
     [HttpPost]
     public async Task<ActionResult<Tenant>> Create(Tenant model)
@@ -22,5 +38,37 @@ public class TenantsController(AppDbContext db) : ControllerBase
         db.Tenants.Add(model);
         await db.SaveChangesAsync();
         return Ok(model);
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<Tenant>> Update(int id, Tenant model)
+    {
+        var item = await db.Tenants.FindAsync(id);
+        if (item is null) return NotFound();
+
+        item.Type = model.Type;
+        item.Name = model.Name;
+        item.TaxId = model.TaxId;
+        item.PersonalId = model.PersonalId;
+        item.Phone = model.Phone;
+        item.Email = model.Email;
+        item.Address = model.Address;
+        item.EmergencyContactName = model.EmergencyContactName;
+        item.EmergencyContactPhone = model.EmergencyContactPhone;
+        item.UpdatedAtUtc = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+        return Ok(item);
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var item = await db.Tenants.FindAsync(id);
+        if (item is null) return NotFound();
+
+        db.Tenants.Remove(item);
+        await db.SaveChangesAsync();
+        return NoContent();
     }
 }
