@@ -142,6 +142,7 @@ const form = ref<any>({ contractId: 0, billingStart: today, billingEnd: today, a
 const meterEditor = ref<any>({ open: false, rowIndex: -1, prevDate: '', currentDate: '', prevUnits: 0, currentMeter: 0 })
 const round2 = (n:number) => Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100
 const trunc2 = (n:number) => Math.floor(Number(n || 0) * 100) / 100
+const trunc0 = (n:number) => Math.floor(Number(n || 0))
 const md = (v?:string) => {
   if (!v) return '-'
   const d = v.slice(5,10).split('-')
@@ -386,7 +387,7 @@ const calculate = async () => {
     const averageDailyPrice = divisor === 0 ? 0 : round2(publicTotal / divisor)
     const payables = form.value.allocations.map((x:any,idx:number) => {
       const publicPart = round2(Number(x.occupantCount || 0) * Number(x.occupancyDays || 0) * averageDailyPrice)
-      const payable = trunc2(privateAmounts[idx] + publicPart)
+      const payable = trunc0(privateAmounts[idx] + publicPart)
       const bill = resolveBillForAllocation(x)
       const billAmount = Number(bill?.amount || 0)
       const billUnits = Number(bill?.usageUnits || 0)
