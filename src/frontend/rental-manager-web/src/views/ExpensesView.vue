@@ -23,7 +23,7 @@
     <dialog class="modal" :class="{ 'modal-open': showModal }">
       <div class="modal-box max-w-5xl max-h-[85vh] overflow-y-auto">
         <h3 class="font-bold text-lg mb-3">{{ form.id ? '編輯支出' : '新增支出' }}</h3>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           <label class="form-control"><span class="label-text mb-1">房源 *</span><select v-model.number="form.propertyUnitId" class="select select-bordered" @change="onPropertyChange">
             <option :value="0">選擇房源</option>
             <option v-for="p in properties" :key="p.id" :value="p.id">{{ p.name }}</option>
@@ -35,12 +35,12 @@
           <label class="form-control"><span class="label-text mb-1">支出類別</span><select v-model.number="form.category" class="select select-bordered">
             <option :value="1">水費</option><option :value="2">電費</option><option :value="3">瓦斯</option><option :value="4">網路</option><option :value="5">電視</option><option :value="6">管理費</option><option :value="7">停車</option><option :value="8">稅金</option><option :value="9">修繕</option><option :value="99">其他</option>
           </select></label>
+          <label class="form-control"><span class="label-text mb-1">發生日</span><input v-model="form.occurredAtUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEndUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">金額 *</span><input v-model.number="form.amount" type="number" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">度數（電費用）</span><input v-model.number="form.usageUnits" type="number" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">度數</span><input v-model.number="form.usageUnits" type="number" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">備註</span><input v-model="form.notes" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">發生日</span><input v-model="form.occurredAtUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
         </div>
         <p class="text-error text-sm mt-3">{{ error }}</p>
         <div class="modal-action">

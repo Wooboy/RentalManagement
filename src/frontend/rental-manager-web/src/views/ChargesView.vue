@@ -12,13 +12,12 @@
     </div>
 
     <table class="table table-zebra">
-      <thead><tr><th>合約</th><th>類別</th><th>金額</th><th>用量</th><th>已收</th><th></th></tr></thead>
+      <thead><tr><th>合約</th><th>類別</th><th>金額</th><th>發生日期</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         <tr v-for="c in items" :key="c.id">
-          <td>{{ c.contractId }}</td><td>{{ c.category }}</td><td>{{ c.amount }}</td><td>{{ c.usageUnits ?? '-' }}</td><td>{{ c.isPaid ? '是' : '否' }}</td>
+          <td>{{ c.contractId }}</td><td>{{ c.category }}</td><td>{{ c.amount }}</td><td>{{ c.billingStartUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
           <td class="flex gap-2 justify-end">
             <button class="btn btn-sm" @click="edit(c)">編輯</button>
-            <button class="btn btn-sm" @click="togglePaid(c)">切換已收</button>
             <button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button>
           </td>
         </tr>
@@ -36,11 +35,11 @@
           <label class="form-control"><span class="label-text mb-1">類別</span><select v-model.number="form.category" class="select select-bordered">
             <option :value="1">租金</option><option :value="2">水費</option><option :value="3">電費</option><option :value="99">其他</option>
           </select></label>
-          <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEndUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">金額 *</span><input v-model.number="form.amount" type="number" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">錶初讀數</span><input v-model.number="form.meterStart" type="number" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">錶末讀數</span><input v-model.number="form.meterEnd" type="number" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">發生日期</span><input v-model="form.occurredDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">狀態</span><select v-model.number="form.isPaid" class="select select-bordered">
+            <option :value="0">未收</option><option :value="1">已收</option>
+          </select></label>
           <label class="form-control"><span class="label-text mb-1">備註</span><input v-model="form.notes" class="input input-bordered" /></label>
         </div>
         <p class="text-error text-sm mt-3">{{ error }}</p>
@@ -67,7 +66,7 @@ const error = ref('')
 const showModal = ref(false)
 const toDateInput = (v: string) => (v ? v.slice(0,10) : '')
 const toIsoDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString()
-const seed = ()=>({ id:0, contractId:0, category:1, billingStartUtc:toDateInput(new Date().toISOString()), billingEndUtc:toDateInput(new Date().toISOString()), amount:0, meterStart:null as number | null, meterEnd:null as number | null, notes:'', isPaid:false, paidAtUtc:null })
+const seed = ()=>({ id:0, contractId:0, category:1, occurredDate:toDateInput(new Date().toISOString()), amount:0, notes:'', isPaid:0 })
 const form = ref<any>(seed())
 const load = async()=>{
   const params:any = { startDateUtc: toIsoDate(startDate.value), endDateUtc: toIsoDate(endDate.value) }
@@ -90,9 +89,32 @@ const search = async()=>{ await router.replace({ query: { startDate: startDate.v
 const reset = ()=>{ form.value=seed(); error.value='' }
 const openCreateModal = ()=>{ reset(); showModal.value = true }
 const closeModal = ()=>{ showModal.value = false; reset() }
-const edit = (c:any)=>{ form.value={...c,billingStartUtc:toDateInput(c.billingStartUtc),billingEndUtc:toDateInput(c.billingEndUtc)}; error.value=''; showModal.value = true }
-const validate = ()=>{ if(!form.value.contractId) return '請選擇合約'; if(form.value.amount<0) return '金額不可小於0'; if(!form.value.billingStartUtc||!form.value.billingEndUtc) return '請輸入帳期'; if(form.value.meterStart!=null && form.value.meterEnd!=null && form.value.meterEnd<form.value.meterStart) return '錶末不可小於錶初'; return '' }
-const save = async()=>{ error.value=validate(); if(error.value) return; const payload={...form.value,billingStartUtc:toIsoDate(form.value.billingStartUtc),billingEndUtc:toIsoDate(form.value.billingEndUtc)}; if(form.value.id) await api.put(`/charges/${form.value.id}`,payload); else await api.post('/charges',payload); closeModal(); await load() }
-const togglePaid = async(c:any)=>{ await api.put(`/charges/${c.id}`,{...c,isPaid:!c.isPaid,paidAtUtc:!c.isPaid?new Date().toISOString():null}); await load() }
+const edit = (c:any)=>{
+  form.value={
+    id:c.id, contractId:c.contractId, category:c.category, amount:c.amount, notes:c.notes ?? '',
+    occurredDate:toDateInput(c.billingStartUtc),
+    isPaid:c.isPaid ? 1 : 0
+  }
+  error.value=''; showModal.value = true
+}
+const validate = ()=>{ if(!form.value.contractId) return '請選擇合約'; if(form.value.amount<0) return '金額不可小於0'; if(!form.value.occurredDate) return '請輸入發生日期'; return '' }
+const save = async()=>{
+  error.value=validate(); if(error.value) return
+  const occurredIso = toIsoDate(form.value.occurredDate)
+  const paid = Number(form.value.isPaid) === 1
+  const payload={
+    id: form.value.id || 0,
+    contractId: form.value.contractId,
+    category: form.value.category,
+    billingStartUtc: occurredIso,
+    billingEndUtc: occurredIso,
+    amount: form.value.amount,
+    notes: form.value.notes,
+    isPaid: paid,
+    paidAtUtc: paid ? new Date().toISOString() : null
+  }
+  if(form.value.id) await api.put(`/charges/${form.value.id}`,payload); else await api.post('/charges',payload)
+  closeModal(); await load()
+}
 const remove = async(id:number)=>{ await api.delete(`/charges/${id}`); await load() }
 </script>
