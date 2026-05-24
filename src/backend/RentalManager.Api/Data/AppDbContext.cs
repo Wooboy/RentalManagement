@@ -49,6 +49,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(x => x.ContractId)
             .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ExpenseRecord>()
+            .HasOne(x => x.PropertyUnit)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyUnitId)
+            .OnDelete(DeleteBehavior.Restrict);
+        modelBuilder.Entity<ExpenseRecord>()
+            .HasOne(x => x.PropertyRoom)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyRoomId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<AdminUser>().HasData(new AdminUser
         {

@@ -11,25 +11,53 @@ namespace RentalManager.Api.Controllers;
 [Route("api/expenses")]
 public class ExpensesController(AppDbContext db) : ControllerBase
 {
-    private static string? Validate(ExpenseRecord model)
+    private async Task<string?> ValidateAsync(ExpenseRecord model)
     {
+        if (model.PropertyUnitId <= 0) return "請選擇房源";
+        if (!await db.PropertyUnits.AnyAsync(x => x.Id == model.PropertyUnitId)) return "房源不存在";
+
+        if (model.PropertyRoomId.HasValue)
+        {
+            var room = await db.PropertyRooms.FirstOrDefaultAsync(x => x.Id == model.PropertyRoomId.Value);
+            if (room is null) return "房間不存在";
+            if (room.PropertyUnitId != model.PropertyUnitId) return "房間不屬於所選房源";
+        }
+
         if (model.Amount < 0) return "金額不可小於 0";
         if (model.BillingEndUtc < model.BillingStartUtc) return "帳期結束日不可早於開始日";
         return null;
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ExpenseRecord>>> GetAll([FromQuery] int? year, [FromQuery] int? month)
+    public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] DateTime? startDateUtc, [FromQuery] DateTime? endDateUtc)
     {
-        var query = db.ExpenseRecords.AsQueryable();
-        if (year.HasValue && month.HasValue)
+        var query = db.ExpenseRecords.Include(x => x.PropertyUnit).Include(x => x.PropertyRoom).AsQueryable();
+        if (startDateUtc.HasValue)
         {
-            var start = new DateTime(year.Value, month.Value, 1, 0, 0, 0, DateTimeKind.Utc);
-            var end = start.AddMonths(1);
-            query = query.Where(x => x.BillingStartUtc >= start && x.BillingStartUtc < end);
+            query = query.Where(x => x.BillingStartUtc >= startDateUtc.Value);
+        }
+        if (endDateUtc.HasValue)
+        {
+            query = query.Where(x => x.BillingStartUtc <= endDateUtc.Value);
         }
 
-        return Ok(await query.OrderByDescending(x => x.Id).ToListAsync());
+        var rows = await query.OrderByDescending(x => x.Id)
+            .Select(x => new
+            {
+                x.Id,
+                x.PropertyUnitId,
+                PropertyUnitName = x.PropertyUnit != null ? x.PropertyUnit.Name : null,
+                x.PropertyRoomId,
+                PropertyRoomName = x.PropertyRoom != null ? x.PropertyRoom.Name : null,
+                x.Category,
+                x.BillingStartUtc,
+                x.BillingEndUtc,
+                x.Amount,
+                x.Notes,
+                x.OccurredAtUtc,
+                x.CreatedAtUtc
+            }).ToListAsync();
+        return Ok(rows);
     }
 
     [HttpGet("{id:int}")]
@@ -42,7 +70,7 @@ public class ExpensesController(AppDbContext db) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ExpenseRecord>> Create(ExpenseRecord model)
     {
-        var error = Validate(model);
+        var error = await ValidateAsync(model);
         if (error is not null) return BadRequest(error);
 
         model.CreatedAtUtc = DateTime.UtcNow;
@@ -56,9 +84,11 @@ public class ExpensesController(AppDbContext db) : ControllerBase
     {
         var item = await db.ExpenseRecords.FindAsync(id);
         if (item is null) return NotFound();
-        var error = Validate(model);
+        var error = await ValidateAsync(model);
         if (error is not null) return BadRequest(error);
 
+        item.PropertyUnitId = model.PropertyUnitId;
+        item.PropertyRoomId = model.PropertyRoomId;
         item.Category = model.Category;
         item.BillingStartUtc = model.BillingStartUtc;
         item.BillingEndUtc = model.BillingEndUtc;

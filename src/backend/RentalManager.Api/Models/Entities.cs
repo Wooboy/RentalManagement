@@ -104,6 +104,10 @@ public class ChargeRecord
 public class ExpenseRecord
 {
     public int Id { get; set; }
+    public int PropertyUnitId { get; set; }
+    public PropertyUnit? PropertyUnit { get; set; }
+    public int? PropertyRoomId { get; set; }
+    public PropertyRoom? PropertyRoom { get; set; }
     public ExpenseCategory Category { get; set; }
     public DateTime BillingStartUtc { get; set; }
     public DateTime BillingEndUtc { get; set; }
