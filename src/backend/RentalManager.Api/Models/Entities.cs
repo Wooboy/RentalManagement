@@ -91,3 +91,35 @@ public class ExpenseRecord
     public DateTime OccurredAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
+
+public class ElectricityBill
+{
+    public int Id { get; set; }
+    public int ContractId { get; set; }
+    public Contract? Contract { get; set; }
+    public ElectricityRuleType RuleType { get; set; }
+    public DateTime BillingStartUtc { get; set; }
+    public DateTime BillingEndUtc { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal TotalUnits { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal PrivateTotalAmount { get; set; }
+    public decimal PublicTotalAmount { get; set; }
+    public decimal PayableTotalAmount { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class ElectricityAllocation
+{
+    public int Id { get; set; }
+    public int ElectricityBillId { get; set; }
+    public ElectricityBill? ElectricityBill { get; set; }
+    public int? TenantId { get; set; }
+    public Tenant? Tenant { get; set; }
+    public decimal TenantUnits { get; set; }
+    public int OccupantCount { get; set; }
+    public int OccupancyDays { get; set; }
+    public decimal PrivateAmount { get; set; }
+    public decimal PublicAmount { get; set; }
+    public decimal PayableAmount { get; set; }
+}

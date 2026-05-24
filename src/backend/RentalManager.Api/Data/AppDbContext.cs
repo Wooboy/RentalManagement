@@ -11,6 +11,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Contract> Contracts => Set<Contract>();
     public DbSet<ChargeRecord> ChargeRecords => Set<ChargeRecord>();
     public DbSet<ExpenseRecord> ExpenseRecords => Set<ExpenseRecord>();
+    public DbSet<ElectricityBill> ElectricityBills => Set<ElectricityBill>();
+    public DbSet<ElectricityAllocation> ElectricityAllocations => Set<ElectricityAllocation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,5 +39,23 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             Username = "admin",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123")
         });
+
+        modelBuilder.Entity<ElectricityBill>()
+            .HasOne(x => x.Contract)
+            .WithMany()
+            .HasForeignKey(x => x.ContractId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ElectricityAllocation>()
+            .HasOne(x => x.ElectricityBill)
+            .WithMany()
+            .HasForeignKey(x => x.ElectricityBillId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ElectricityAllocation>()
+            .HasOne(x => x.Tenant)
+            .WithMany()
+            .HasForeignKey(x => x.TenantId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
