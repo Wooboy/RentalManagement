@@ -11,6 +11,13 @@ namespace RentalManager.Api.Controllers;
 [Route("api/expenses")]
 public class ExpensesController(AppDbContext db) : ControllerBase
 {
+    private static string? Validate(ExpenseRecord model)
+    {
+        if (model.Amount < 0) return "金額不可小於 0";
+        if (model.BillingEndUtc < model.BillingStartUtc) return "帳期結束日不可早於開始日";
+        return null;
+    }
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ExpenseRecord>>> GetAll([FromQuery] int? year, [FromQuery] int? month)
     {
@@ -35,6 +42,9 @@ public class ExpensesController(AppDbContext db) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ExpenseRecord>> Create(ExpenseRecord model)
     {
+        var error = Validate(model);
+        if (error is not null) return BadRequest(error);
+
         model.CreatedAtUtc = DateTime.UtcNow;
         db.ExpenseRecords.Add(model);
         await db.SaveChangesAsync();
@@ -46,6 +56,8 @@ public class ExpensesController(AppDbContext db) : ControllerBase
     {
         var item = await db.ExpenseRecords.FindAsync(id);
         if (item is null) return NotFound();
+        var error = Validate(model);
+        if (error is not null) return BadRequest(error);
 
         item.Category = model.Category;
         item.BillingStartUtc = model.BillingStartUtc;
