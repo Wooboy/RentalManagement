@@ -33,6 +33,17 @@ public class ContractsController(AppDbContext db) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Contract>> Create(Contract model)
     {
+        if (string.IsNullOrWhiteSpace(model.ContractNo)) return BadRequest("合約編號必填");
+        if (model.TenantId <= 0) return BadRequest("請選擇租客");
+        if (model.PropertyUnitId is null or <= 0) return BadRequest("請選擇房源");
+
+        var tenantExists = await db.Tenants.AnyAsync(x => x.Id == model.TenantId);
+        if (!tenantExists) return BadRequest("租客不存在");
+        var property = await db.PropertyUnits.FirstOrDefaultAsync(x => x.Id == model.PropertyUnitId.Value);
+        if (property is null) return BadRequest("房源不存在");
+
+        model.PropertyName = property.Name;
+        model.PropertyAddress = property.Address;
         model.CreatedAtUtc = DateTime.UtcNow;
         model.UpdatedAtUtc = DateTime.UtcNow;
         db.Contracts.Add(model);
@@ -45,12 +56,20 @@ public class ContractsController(AppDbContext db) : ControllerBase
     {
         var item = await db.Contracts.FindAsync(id);
         if (item is null) return NotFound();
+        if (string.IsNullOrWhiteSpace(model.ContractNo)) return BadRequest("合約編號必填");
+        if (model.TenantId <= 0) return BadRequest("請選擇租客");
+        if (model.PropertyUnitId is null or <= 0) return BadRequest("請選擇房源");
+
+        var tenantExists = await db.Tenants.AnyAsync(x => x.Id == model.TenantId);
+        if (!tenantExists) return BadRequest("租客不存在");
+        var property = await db.PropertyUnits.FirstOrDefaultAsync(x => x.Id == model.PropertyUnitId.Value);
+        if (property is null) return BadRequest("房源不存在");
 
         item.ContractNo = model.ContractNo;
         item.TenantId = model.TenantId;
         item.PropertyUnitId = model.PropertyUnitId;
-        item.PropertyName = model.PropertyName;
-        item.PropertyAddress = model.PropertyAddress;
+        item.PropertyName = property.Name;
+        item.PropertyAddress = property.Address;
         item.StartDateUtc = model.StartDateUtc;
         item.EndDateUtc = model.EndDateUtc;
         item.MonthlyRent = model.MonthlyRent;
