@@ -1,0 +1,9 @@
+﻿namespace RentalManager.Api.Dtos;
+
+public record LoginRequest(string Username, string Password);
+public record LoginResponse(string Token, string Username);
+
+public record ElectricityTenantInput(decimal TenantUnits, int OccupantCount, int OccupancyDays);
+public record MultiMeterInput(decimal TotalAmount, decimal TotalUnits, List<ElectricityTenantInput> Tenants);
+public record ElectricityCalculateRequest(int RuleType, decimal? UnitPrice, decimal? TenantUnits, decimal? BillAmount, decimal? TotalUnits, List<ElectricityTenantInput>? Tenants);
+public record ElectricityCalculateResponse(decimal UnitPrice, decimal PrivateElectricityAmount, decimal PublicElectricityAmount, decimal PayableAmount, List<decimal>? TenantPayables);
