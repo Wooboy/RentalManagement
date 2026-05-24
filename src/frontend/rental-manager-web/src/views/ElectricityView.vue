@@ -108,15 +108,14 @@
 
     <dialog class="modal" :class="{ 'modal-open': meterEditor.open }">
       <div class="modal-box">
-        <h3 class="font-bold text-lg mb-3">編輯錶數與入住</h3>
+        <h3 class="font-bold text-lg mb-3">編輯錶數</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <label class="form-control"><span class="label-text mb-1">入住日（單一日期）</span><input v-model="meterEditor.moveInDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">上期讀表日</span><input v-model="meterEditor.prevDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">本期讀表日</span><input v-model="meterEditor.currentDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">上期讀表日（帳期起日）</span><input v-model="meterEditor.prevDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
+          <label class="form-control"><span class="label-text mb-1">本期讀表日（帳期迄日）</span><input v-model="meterEditor.currentDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">前一期度數</span><input v-model.number="meterEditor.prevUnits" type="number" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">現在錶數</span><input v-model.number="meterEditor.currentMeter" type="number" class="input input-bordered" /></label>
         </div>
-        <p class="text-sm mt-2">用電度數 = 現在錶數 - 前一期度數；入住天數將由「入住日 ~ 帳期迄日」自動計算</p>
+        <p class="text-sm mt-2">用電度數 = 現在錶數 - 前一期度數</p>
         <div class="modal-action">
           <button class="btn" @click="closeMeterEditor">取消</button>
           <button class="btn btn-primary" @click="saveMeterEditor">儲存</button>
@@ -140,8 +139,9 @@ const error = ref('')
 const result = ref<any>(null)
 const today = new Date().toISOString().slice(0, 10)
 const form = ref<any>({ contractId: 0, billingStart: today, billingEnd: today, allocations: [] })
-const meterEditor = ref<any>({ open: false, rowIndex: -1, moveInDate: today, prevDate: '', currentDate: '', prevUnits: 0, currentMeter: 0 })
+const meterEditor = ref<any>({ open: false, rowIndex: -1, prevDate: '', currentDate: '', prevUnits: 0, currentMeter: 0 })
 const round2 = (n:number) => Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100
+const trunc2 = (n:number) => Math.floor(Number(n || 0) * 100) / 100
 const md = (v?:string) => {
   if (!v) return '-'
   const d = v.slice(5,10).split('-')
@@ -160,17 +160,10 @@ const periodDays = computed(() => {
   if (end < start) return 0
   return Math.floor((end.getTime() - start.getTime()) / 86400000) + 1
 })
-const daysBetweenInclusive = (start:string, end:string) => {
-  if (!start || !end || end < start) return 0
-  return Math.floor((new Date(`${end}T00:00:00Z`).getTime() - new Date(`${start}T00:00:00Z`).getTime()) / 86400000) + 1
-}
 const resolveBillForAllocation = (a:any) => {
-  if (a?.propertyRoomId) {
-    const byRoom = selectedBills.value.find((b:any) => Number(b.propertyRoomId || 0) === Number(a.propertyRoomId))
-    if (byRoom) return byRoom
-  }
-  return selectedBillMap.value.get(Number(a?.expenseBillId || 0)) || selectedBills.value[0]
+  return selectedBillMap.value.get(Number(a?.expenseBillId || 0))
 }
+const findBillByRoom = (roomId:number) => selectedBills.value.find((b:any) => Number(b.propertyRoomId || 0) === Number(roomId))
 
 const addRowFromContract = () => {
   error.value = ''
@@ -185,7 +178,7 @@ const addRowFromContract = () => {
     tenantId: pick.tenantId,
     tenantName: pick.tenantName || '',
     contractLabel: pick.label,
-    expenseBillId: resolveBillForAllocation(pick)?.id || selectedBills.value[0]?.id || 0,
+    expenseBillId: findBillByRoom(Number(pick.propertyRoomId || 0))?.id || selectedBills.value[0]?.id || 0,
     tenantUnits: 0,
     occupantCount: pick.occupantCount || 1,
     occupancyDays: periodDays.value,
@@ -217,6 +210,8 @@ const loadExpenseBills = async () => {
 
 const toggleBill = async (bill: any) => {
   const exists = selectedExpenseBillIds.value.includes(bill.id)
+  const newlySelectedBillId = Number(bill.id)
+  const newlySelectedRoomId = Number(bill.propertyRoomId || 0)
   if (exists) {
     selectedExpenseBillIds.value = selectedExpenseBillIds.value.filter(x => x !== bill.id)
   } else {
@@ -283,23 +278,51 @@ const toggleBill = async (bill: any) => {
   })
   selectedContractForAdd.value = relatedContractRooms.value[0]?.key || ''
   form.value.contractId = rel.length ? rel[0].id : 0
-  form.value.allocations = relatedContractRooms.value.map((x:any) => ({
-    contractId: x.contractId,
-    propertyRoomId: x.propertyRoomId,
-    tenantId: x.tenantId,
-    tenantName: x.tenantName,
-    contractLabel: x.label,
-    expenseBillId: resolveBillForAllocation(x)?.id || selectedBills.value[0]?.id || 0,
-    tenantUnits: 0,
-    occupantCount: x.occupantCount || 1,
-    occupancyDays: periodDays.value,
-    occupancyStartDate: form.value.billingStart,
-    occupancyEndDate: form.value.billingEnd,
-    calcDetail: null
-  }))
-  for (const row of form.value.allocations) {
-    if (!selectedExpenseBillIds.value.includes(Number(row.expenseBillId || 0))) {
-      row.expenseBillId = selectedBills.value[0]?.id || 0
+  if (!form.value.allocations.length) {
+    form.value.allocations = relatedContractRooms.value.map((x:any) => ({
+      contractId: x.contractId,
+      propertyRoomId: x.propertyRoomId,
+      tenantId: x.tenantId,
+      tenantName: x.tenantName,
+      contractLabel: x.label,
+      expenseBillId: (!exists && newlySelectedRoomId > 0 && Number(x.propertyRoomId || 0) === newlySelectedRoomId)
+        ? newlySelectedBillId
+        : (findBillByRoom(Number(x.propertyRoomId || 0))?.id || selectedBills.value[0]?.id || 0),
+      tenantUnits: 0,
+      occupantCount: x.occupantCount || 1,
+      occupancyDays: periodDays.value,
+      occupancyStartDate: form.value.billingStart,
+      occupancyEndDate: form.value.billingEnd,
+      calcDetail: null
+    }))
+  } else {
+    const exists = new Set(form.value.allocations.map((a:any) => `${a.contractId}:${a.propertyRoomId}`))
+    const missing = relatedContractRooms.value
+      .filter((x:any) => !exists.has(`${x.contractId}:${x.propertyRoomId}`))
+      .map((x:any) => ({
+        contractId: x.contractId,
+        propertyRoomId: x.propertyRoomId,
+        tenantId: x.tenantId,
+        tenantName: x.tenantName,
+        contractLabel: x.label,
+        expenseBillId: (!exists && newlySelectedRoomId > 0 && Number(x.propertyRoomId || 0) === newlySelectedRoomId)
+          ? newlySelectedBillId
+          : (findBillByRoom(Number(x.propertyRoomId || 0))?.id || selectedBills.value[0]?.id || 0),
+        tenantUnits: 0,
+        occupantCount: x.occupantCount || 1,
+        occupancyDays: periodDays.value,
+        occupancyStartDate: form.value.billingStart,
+        occupancyEndDate: form.value.billingEnd,
+        calcDetail: null
+      }))
+    if (missing.length) form.value.allocations.push(...missing)
+  }
+
+  if (!exists && newlySelectedRoomId > 0) {
+    for (const row of form.value.allocations) {
+      if (Number(row.propertyRoomId || 0) === newlySelectedRoomId) {
+        row.expenseBillId = newlySelectedBillId
+      }
     }
   }
 }
@@ -309,9 +332,8 @@ const openMeterEditor = (idx:number) => {
   meterEditor.value = {
     open: true,
     rowIndex: idx,
-    moveInDate: row.occupancyStartDate || form.value.billingStart,
-    prevDate: row.prevReadingDate || '',
-    currentDate: row.currentReadingDate || '',
+    prevDate: (resolveBillForAllocation(row)?.billingStartUtc || form.value.billingStart)?.slice(0,10),
+    currentDate: (resolveBillForAllocation(row)?.billingEndUtc || form.value.billingEnd)?.slice(0,10),
     prevUnits: Number(row.prevUnits || 0),
     currentMeter: Number(row.currentMeter || 0)
   }
@@ -322,15 +344,10 @@ const saveMeterEditor = () => {
   if (i < 0) return
   const row = form.value.allocations[i]
   const usage = Number(meterEditor.value.currentMeter || 0) - Number(meterEditor.value.prevUnits || 0)
-  const moveInDate = meterEditor.value.moveInDate || form.value.billingStart
-  const moveInDays = daysBetweenInclusive(moveInDate, form.value.billingEnd)
   row.prevReadingDate = meterEditor.value.prevDate || ''
   row.currentReadingDate = meterEditor.value.currentDate || ''
   row.prevUnits = Number(meterEditor.value.prevUnits || 0)
   row.currentMeter = Number(meterEditor.value.currentMeter || 0)
-  row.occupancyStartDate = moveInDate
-  row.occupancyEndDate = form.value.billingEnd
-  row.occupancyDays = moveInDays
   row.tenantUnits = round2(usage < 0 ? 0 : usage)
   closeMeterEditor()
 }
@@ -364,7 +381,7 @@ const calculate = async () => {
     const averageDailyPrice = divisor === 0 ? 0 : round2(publicTotal / divisor)
     const payables = form.value.allocations.map((x:any,idx:number) => {
       const publicPart = round2(Number(x.occupantCount || 0) * Number(x.occupancyDays || 0) * averageDailyPrice)
-      const payable = round2(privateAmounts[idx] + publicPart)
+      const payable = trunc2(privateAmounts[idx] + publicPart)
       const bill = resolveBillForAllocation(x)
       const billAmount = Number(bill?.amount || 0)
       const billUnits = Number(bill?.usageUnits || 0)
@@ -375,14 +392,13 @@ const calculate = async () => {
         publicAmountText: `住${Number(x.occupancyDays || 0)}日 × ${Number(x.occupantCount || 0)}人 × ${averageDailyPrice}元/日 = ${publicPart}元`,
         totalText: `${privateAmounts[idx]} + ${publicPart} = ${payable}元`
       }
-      x.expenseBillId = Number(bill?.id || 0)
       return payable
     })
     result.value = {
       unitPrice: aggregatedUnits.value === 0 ? 0 : round2(aggregatedAmount.value / aggregatedUnits.value),
       privateElectricityAmount: privateTotal,
       publicElectricityAmount: publicTotal,
-      payableAmount: round2(payables.reduce((s:number,v:number)=>s+v,0)),
+      payableAmount: trunc2(payables.reduce((s:number,v:number)=>s+v,0)),
       tenantPayables: payables
     }
     return
