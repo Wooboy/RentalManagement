@@ -4,8 +4,8 @@
       <RouterView />
     </main>
   </div>
-  <div v-else class="min-h-screen bg-base-200 flex">
-    <aside class="w-72 h-screen bg-base-100 border-r border-base-300 flex flex-col shrink-0">
+  <div v-else class="h-screen bg-base-200 flex overflow-hidden">
+    <aside class="w-72 h-full bg-base-100 border-r border-base-300 flex flex-col shrink-0">
       <div class="px-5 py-5 border-b border-base-300">
         <p class="text-xs uppercase tracking-wider text-base-content/60">Rental Manager</p>
         <h1 class="text-xl font-bold">租屋管理系統</h1>
@@ -35,8 +35,10 @@
         </div>
       </div>
     </aside>
-    <main class="flex-1 p-6 overflow-auto">
-      <RouterView />
+    <main class="flex-1 h-full overflow-hidden">
+      <div class="h-full overflow-y-auto p-6">
+        <RouterView />
+      </div>
     </main>
   </div>
 
