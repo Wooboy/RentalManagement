@@ -6,80 +6,102 @@ using RentalManager.Api.Models;
 
 namespace RentalManager.Api.Controllers;
 
+public record ContractUpsertRequest(
+    string ContractNo,
+    int TenantId,
+    List<int> PropertyRoomIds,
+    DateTime StartDateUtc,
+    DateTime EndDateUtc,
+    decimal MonthlyRent,
+    decimal Deposit,
+    int OccupantCount,
+    int ElectricityRuleType,
+    int Status
+);
+
 [ApiController]
 [Route("api/contracts")]
 [Authorize]
 public class ContractsController(AppDbContext db) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Contract>>> GetAll([FromQuery] string? keyword)
+    public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] string? keyword)
     {
-        var query = db.Contracts.Include(x => x.Tenant).Include(x => x.PropertyUnit).Include(x => x.PropertyRoom).AsQueryable();
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            query = query.Where(x => x.ContractNo.Contains(keyword) || x.PropertyName.Contains(keyword));
-        }
+        var query = db.Contracts.Include(x => x.Tenant).Include(x => x.PropertyUnit).AsQueryable();
+        if (!string.IsNullOrWhiteSpace(keyword)) query = query.Where(x => x.ContractNo.Contains(keyword) || x.PropertyName.Contains(keyword));
 
-        return Ok(await query.OrderByDescending(x => x.Id).ToListAsync());
-    }
+        var contracts = await query.OrderByDescending(x => x.Id).ToListAsync();
+        var ids = contracts.Select(x => x.Id).ToList();
+        var roomMap = await db.ContractRooms.Include(x => x.PropertyRoom).Where(x => ids.Contains(x.ContractId))
+            .GroupBy(x => x.ContractId)
+            .ToDictionaryAsync(g => g.Key, g => g.Select(x => new { x.PropertyRoomId, RoomCode = x.PropertyRoom!.Code, RoomName = x.PropertyRoom!.Name }).ToList());
 
-    [HttpGet("{id:int}")]
-    public async Task<ActionResult<Contract>> GetById(int id)
-    {
-        var item = await db.Contracts.Include(x => x.Tenant).Include(x => x.PropertyUnit).Include(x => x.PropertyRoom).FirstOrDefaultAsync(x => x.Id == id);
-        return item is null ? NotFound() : Ok(item);
+        return Ok(contracts.Select(c => new {
+            c.Id, c.ContractNo, c.TenantId, c.Tenant, c.PropertyUnitId, c.PropertyName, c.PropertyAddress,
+            c.StartDateUtc, c.EndDateUtc, c.MonthlyRent, c.Deposit, c.OccupantCount, c.ElectricityRuleType, c.Status,
+            c.CreatedAtUtc, c.UpdatedAtUtc,
+            PropertyRoomIds = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Select(r => r.PropertyRoomId).ToList() : new List<int>(),
+            Rooms = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Cast<object>().ToList() : new List<object>()
+        }));
     }
 
     [HttpPost]
-    public async Task<ActionResult<Contract>> Create(Contract model)
+    public async Task<ActionResult> Create(ContractUpsertRequest model)
     {
-        if (string.IsNullOrWhiteSpace(model.ContractNo)) return BadRequest("合約編號必填");
-        if (model.TenantId <= 0) return BadRequest("請選擇租客");
-        if (model.PropertyRoomId is null or <= 0) return BadRequest("請選擇房間");
+        var valid = await ValidateAndResolve(model);
+        if (!valid.ok) return BadRequest(valid.error);
 
-        var tenantExists = await db.Tenants.AnyAsync(x => x.Id == model.TenantId);
-        if (!tenantExists) return BadRequest("租客不存在");
-        var room = await db.PropertyRooms.Include(x => x.PropertyUnit).FirstOrDefaultAsync(x => x.Id == model.PropertyRoomId.Value);
-        if (room is null || room.PropertyUnit is null) return BadRequest("房間不存在");
-
-        model.PropertyUnitId = room.PropertyUnitId;
-        model.PropertyName = $"{room.PropertyUnit.Name}-{(string.IsNullOrWhiteSpace(room.Name) ? room.Code : room.Name)}";
-        model.PropertyAddress = room.PropertyUnit.Address;
-        model.CreatedAtUtc = DateTime.UtcNow;
-        model.UpdatedAtUtc = DateTime.UtcNow;
-        db.Contracts.Add(model);
+        var contract = new Contract
+        {
+            ContractNo = model.ContractNo,
+            TenantId = model.TenantId,
+            PropertyUnitId = valid.propertyUnit!.Id,
+            PropertyName = valid.propertyDisplay!,
+            PropertyAddress = valid.propertyUnit.Address,
+            StartDateUtc = model.StartDateUtc,
+            EndDateUtc = model.EndDateUtc,
+            MonthlyRent = model.MonthlyRent,
+            Deposit = model.Deposit,
+            OccupantCount = model.OccupantCount,
+            ElectricityRuleType = (ElectricityRuleType)model.ElectricityRuleType,
+            Status = (ContractStatus)model.Status,
+            CreatedAtUtc = DateTime.UtcNow,
+            UpdatedAtUtc = DateTime.UtcNow
+        };
+        db.Contracts.Add(contract);
         await db.SaveChangesAsync();
-        return Ok(model);
+
+        db.ContractRooms.AddRange(model.PropertyRoomIds.Distinct().Select(rid => new ContractRoom { ContractId = contract.Id, PropertyRoomId = rid }));
+        await db.SaveChangesAsync();
+        return Ok(contract);
     }
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<Contract>> Update(int id, Contract model)
+    public async Task<ActionResult> Update(int id, ContractUpsertRequest model)
     {
         var item = await db.Contracts.FindAsync(id);
         if (item is null) return NotFound();
-        if (string.IsNullOrWhiteSpace(model.ContractNo)) return BadRequest("合約編號必填");
-        if (model.TenantId <= 0) return BadRequest("請選擇租客");
-        if (model.PropertyRoomId is null or <= 0) return BadRequest("請選擇房間");
 
-        var tenantExists = await db.Tenants.AnyAsync(x => x.Id == model.TenantId);
-        if (!tenantExists) return BadRequest("租客不存在");
-        var room = await db.PropertyRooms.Include(x => x.PropertyUnit).FirstOrDefaultAsync(x => x.Id == model.PropertyRoomId.Value);
-        if (room is null || room.PropertyUnit is null) return BadRequest("房間不存在");
+        var valid = await ValidateAndResolve(model);
+        if (!valid.ok) return BadRequest(valid.error);
 
         item.ContractNo = model.ContractNo;
         item.TenantId = model.TenantId;
-        item.PropertyUnitId = room.PropertyUnitId;
-        item.PropertyRoomId = room.Id;
-        item.PropertyName = $"{room.PropertyUnit.Name}-{(string.IsNullOrWhiteSpace(room.Name) ? room.Code : room.Name)}";
-        item.PropertyAddress = room.PropertyUnit.Address;
+        item.PropertyUnitId = valid.propertyUnit!.Id;
+        item.PropertyName = valid.propertyDisplay!;
+        item.PropertyAddress = valid.propertyUnit.Address;
         item.StartDateUtc = model.StartDateUtc;
         item.EndDateUtc = model.EndDateUtc;
         item.MonthlyRent = model.MonthlyRent;
         item.Deposit = model.Deposit;
         item.OccupantCount = model.OccupantCount;
-        item.ElectricityRuleType = model.ElectricityRuleType;
-        item.Status = model.Status;
+        item.ElectricityRuleType = (ElectricityRuleType)model.ElectricityRuleType;
+        item.Status = (ContractStatus)model.Status;
         item.UpdatedAtUtc = DateTime.UtcNow;
+
+        var old = db.ContractRooms.Where(x => x.ContractId == id);
+        db.ContractRooms.RemoveRange(old);
+        db.ContractRooms.AddRange(model.PropertyRoomIds.Distinct().Select(rid => new ContractRoom { ContractId = id, PropertyRoomId = rid }));
 
         await db.SaveChangesAsync();
         return Ok(item);
@@ -90,9 +112,27 @@ public class ContractsController(AppDbContext db) : ControllerBase
     {
         var item = await db.Contracts.FindAsync(id);
         if (item is null) return NotFound();
-
         db.Contracts.Remove(item);
         await db.SaveChangesAsync();
         return NoContent();
+    }
+
+    private async Task<(bool ok, string? error, PropertyUnit? propertyUnit, string? propertyDisplay)> ValidateAndResolve(ContractUpsertRequest model)
+    {
+        if (string.IsNullOrWhiteSpace(model.ContractNo)) return (false, "合約編號必填", null, null);
+        if (model.TenantId <= 0) return (false, "請選擇租客", null, null);
+        if (model.PropertyRoomIds is null || model.PropertyRoomIds.Count == 0) return (false, "請至少選擇一間房間", null, null);
+        if (!await db.Tenants.AnyAsync(x => x.Id == model.TenantId)) return (false, "租客不存在", null, null);
+
+        var roomIds = model.PropertyRoomIds.Distinct().ToList();
+        var rooms = await db.PropertyRooms.Include(x => x.PropertyUnit).Where(x => roomIds.Contains(x.Id)).ToListAsync();
+        if (rooms.Count != roomIds.Count || rooms.Any(x => x.PropertyUnit is null)) return (false, "房間資料不存在", null, null);
+
+        var unitId = rooms.First().PropertyUnitId;
+        if (rooms.Any(x => x.PropertyUnitId != unitId)) return (false, "所選房間必須屬於同一房源", null, null);
+
+        var property = rooms.First().PropertyUnit!;
+        var display = $"{property.Name}-" + string.Join(",", rooms.Select(r => string.IsNullOrWhiteSpace(r.Name) ? r.Code : r.Name));
+        return (true, null, property, display);
     }
 }

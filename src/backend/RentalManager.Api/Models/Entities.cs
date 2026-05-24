@@ -61,8 +61,6 @@ public class Contract
     public Tenant? Tenant { get; set; }
     public int? PropertyUnitId { get; set; }
     public PropertyUnit? PropertyUnit { get; set; }
-    public int? PropertyRoomId { get; set; }
-    public PropertyRoom? PropertyRoom { get; set; }
     public string PropertyName { get; set; } = string.Empty;
     public string PropertyAddress { get; set; } = string.Empty;
     public DateTime StartDateUtc { get; set; }
@@ -74,6 +72,15 @@ public class Contract
     public ContractStatus Status { get; set; } = ContractStatus.Active;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class ContractRoom
+{
+    public int Id { get; set; }
+    public int ContractId { get; set; }
+    public Contract? Contract { get; set; }
+    public int PropertyRoomId { get; set; }
+    public PropertyRoom? PropertyRoom { get; set; }
 }
 
 public class ChargeRecord

@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
     public DbSet<PropertyUnit> PropertyUnits => Set<PropertyUnit>();
     public DbSet<PropertyRoom> PropertyRooms => Set<PropertyRoom>();
+    public DbSet<ContractRoom> ContractRooms => Set<ContractRoom>();
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Contract> Contracts => Set<Contract>();
     public DbSet<ChargeRecord> ChargeRecords => Set<ChargeRecord>();
@@ -27,16 +28,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(x => x.PropertyUnitId)
             .OnDelete(DeleteBehavior.SetNull);
-        modelBuilder.Entity<Contract>()
-            .HasOne(x => x.PropertyRoom)
-            .WithMany()
-            .HasForeignKey(x => x.PropertyRoomId)
-            .OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<PropertyRoom>()
             .HasOne(x => x.PropertyUnit)
             .WithMany()
             .HasForeignKey(x => x.PropertyUnitId)
             .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ContractRoom>()
+            .HasOne(x => x.Contract)
+            .WithMany()
+            .HasForeignKey(x => x.ContractId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<ContractRoom>()
+            .HasOne(x => x.PropertyRoom)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyRoomId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<ChargeRecord>()
             .HasOne(x => x.Contract)
