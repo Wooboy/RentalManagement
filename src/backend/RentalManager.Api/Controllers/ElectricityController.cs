@@ -80,6 +80,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
             PrivateTotalAmount = privateTotal,
             PublicTotalAmount = publicTotal,
             PayableTotalAmount = 0,
+            ChargesCreated = false,
             CreatedAtUtc = DateTime.UtcNow
         };
 
@@ -128,7 +129,8 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                 x.TotalAmount,
                 x.TotalUnits,
                 x.UnitPrice,
-                x.PayableTotalAmount
+                x.PayableTotalAmount,
+                x.ChargesCreated
             }).ToListAsync();
 
         return Ok(rows);
@@ -181,6 +183,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
     {
         var bill = await db.ElectricityBills.FirstOrDefaultAsync(x => x.Id == billId);
         if (bill is null) return NotFound("帳單不存在");
+        if (bill.ChargesCreated) return BadRequest("此帳單已轉入應收，不能重複轉入");
 
         var contract = await db.Contracts
             .Include(x => x.Tenant)
@@ -211,6 +214,9 @@ public class ElectricityController(AppDbContext db) : ControllerBase
             created++;
         }
 
+        await db.SaveChangesAsync();
+        bill.ChargesCreated = true;
+        bill.ChargesCreatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return Ok(new { createdCount = created });
     }

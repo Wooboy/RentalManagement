@@ -66,7 +66,9 @@
             <td>{{ b.payableTotalAmount }}</td>
             <td class="flex gap-2 justify-end">
               <button class="btn btn-sm" @click="loadBillDetail(b.id)">明細</button>
-              <button class="btn btn-sm btn-accent" @click="createCharges(b.id)">轉應收</button>
+              <button class="btn btn-sm btn-accent" :disabled="b.chargesCreated" @click="createCharges(b.id)">
+                {{ b.chargesCreated ? '已轉入' : '轉應收' }}
+              </button>
             </td>
           </tr>
         </tbody>
@@ -178,6 +180,7 @@ const loadBillDetail = async (billId: number) => {
 
 const createCharges = async (billId: number) => {
   await api.post(`/electricity/bills/${billId}/create-charges`)
+  await loadBills()
 }
 
 onMounted(async () => {

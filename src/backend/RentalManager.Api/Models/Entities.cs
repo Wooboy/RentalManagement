@@ -106,6 +106,8 @@ public class ElectricityBill
     public decimal PrivateTotalAmount { get; set; }
     public decimal PublicTotalAmount { get; set; }
     public decimal PayableTotalAmount { get; set; }
+    public bool ChargesCreated { get; set; }
+    public DateTime? ChargesCreatedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
