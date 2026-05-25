@@ -7,6 +7,7 @@ public enum PaymentIntervalType { Monthly = 1, Quarterly = 3, Yearly = 12 }
 public enum ElectricityRuleType { Unit = 1, Average = 2, MultiMeter = 3 }
 public enum ChargeCategory { Rent = 1, Water = 2, Electricity = 3, Other = 99 }
 public enum ExpenseCategory { Water = 1, Electricity = 2, Gas = 3, Internet = 4, Television = 5, Management = 6, Parking = 7, Tax = 8, Repair = 9, Other = 99 }
+public enum ExpenseSplitStatus { Unsplit = 1, Split = 2, NoNeed = 3 }
 
 public class AdminUser
 {
@@ -118,6 +119,7 @@ public class ExpenseRecord
     public DateTime BillingEndUtc { get; set; }
     public decimal Amount { get; set; }
     public decimal? UsageUnits { get; set; }
+    public ExpenseSplitStatus SplitStatus { get; set; } = ExpenseSplitStatus.Unsplit;
     public string? Notes { get; set; }
     public DateTime OccurredAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;

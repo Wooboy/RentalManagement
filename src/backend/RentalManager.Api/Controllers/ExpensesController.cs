@@ -26,6 +26,7 @@ public class ExpensesController(AppDbContext db) : ControllerBase
         if (model.Amount < 0) return "金額不可小於 0";
         if (model.UsageUnits.HasValue && model.UsageUnits.Value < 0) return "度數不可小於 0";
         if (model.BillingEndUtc < model.BillingStartUtc) return "帳期結束日不可早於開始日";
+        if (!Enum.IsDefined(typeof(ExpenseSplitStatus), model.SplitStatus)) return "支出狀態不正確";
         return null;
     }
 
@@ -55,6 +56,7 @@ public class ExpensesController(AppDbContext db) : ControllerBase
                 x.BillingEndUtc,
                 x.Amount,
                 x.UsageUnits,
+                x.SplitStatus,
                 x.Notes,
                 x.OccurredAtUtc,
                 x.CreatedAtUtc
@@ -96,6 +98,7 @@ public class ExpensesController(AppDbContext db) : ControllerBase
         item.BillingEndUtc = model.BillingEndUtc;
         item.Amount = model.Amount;
         item.UsageUnits = model.UsageUnits;
+        item.SplitStatus = model.SplitStatus;
         item.Notes = model.Notes;
         item.OccurredAtUtc = model.OccurredAtUtc;
 
