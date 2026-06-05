@@ -48,6 +48,7 @@ public class TenantsController(AppDbContext db) : ControllerBase
 
         item.Type = model.Type;
         item.Name = model.Name;
+        item.BirthdayUtc = model.BirthdayUtc;
         item.TaxId = model.TaxId;
         item.PersonalId = model.PersonalId;
         item.Phone = model.Phone;
@@ -55,6 +56,7 @@ public class TenantsController(AppDbContext db) : ControllerBase
         item.Address = model.Address;
         item.EmergencyContactName = model.EmergencyContactName;
         item.EmergencyContactPhone = model.EmergencyContactPhone;
+        item.Notes = model.Notes;
         item.UpdatedAtUtc = DateTime.UtcNow;
 
         await db.SaveChangesAsync();

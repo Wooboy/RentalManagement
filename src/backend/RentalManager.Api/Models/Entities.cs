@@ -23,6 +23,7 @@ public class Tenant
     public int Id { get; set; }
     public TenantType Type { get; set; }
     public string Name { get; set; } = string.Empty;
+    public DateTime? BirthdayUtc { get; set; }
     public string? TaxId { get; set; }
     public string? PersonalId { get; set; }
     public string Phone { get; set; } = string.Empty;
@@ -30,6 +31,7 @@ public class Tenant
     public string? Address { get; set; }
     public string? EmergencyContactName { get; set; }
     public string? EmergencyContactPhone { get; set; }
+    public string? Notes { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

@@ -11,10 +11,10 @@
     </div>
 
     <table class="table table-zebra">
-      <thead><tr><th>姓名</th><th>電話</th><th></th></tr></thead>
+      <thead><tr><th>姓名</th><th>電話</th><th>生日</th><th>統編</th><th>備註</th><th></th></tr></thead>
       <tbody>
         <tr v-for="t in items" :key="t.id">
-          <td>{{ t.name }}</td><td>{{ t.phone }}</td>
+          <td>{{ t.name }}</td><td>{{ t.phone }}</td><td>{{ t.birthdayUtc?.slice(0,10) || '-' }}</td><td>{{ t.taxId || '-' }}</td><td>{{ t.notes || '-' }}</td>
           <td class="flex gap-2 justify-end">
             <button class="btn btn-sm" @click="edit(t)">編輯</button>
             <button class="btn btn-sm btn-error" @click="remove(t.id)">刪除</button>
@@ -35,6 +35,18 @@
             <span class="label-text mb-1">電話</span>
             <input v-model="form.phone" class="input input-bordered" placeholder="請輸入" />
           </label>
+          <label class="form-control">
+            <span class="label-text mb-1">生日</span>
+            <input v-model="form.birthdayUtc" type="date" max="2099-12-31" class="input input-bordered" />
+          </label>
+          <label class="form-control">
+            <span class="label-text mb-1">統編</span>
+            <input v-model="form.taxId" class="input input-bordered" placeholder="請輸入" />
+          </label>
+          <label class="form-control md:col-span-4">
+            <span class="label-text mb-1">備註</span>
+            <input v-model="form.notes" class="input input-bordered" placeholder="請輸入" />
+          </label>
         </div>
         <p class="text-error text-sm mt-3">{{ error }}</p>
         <div class="modal-action">
@@ -52,17 +64,21 @@ const items = ref<any[]>([])
 const keyword = ref('')
 const showModal = ref(false)
 const error = ref('')
-const form = ref<any>({ id: 0, name: '', phone: '', type: 1 })
+const toDateInput = (v: string) => (v ? v.slice(0, 10) : '')
+const toIsoDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString()
+const seed = ()=>({ id: 0, name: '', phone: '', birthdayUtc: '', taxId: '', notes: '', type: 1 })
+const form = ref<any>(seed())
 const load = async()=>{ const {data}=await api.get('/tenants',{params:{keyword:keyword.value||undefined}}); items.value=data }
 onMounted(load)
-const reset = ()=> { form.value = { id: 0, name: '', phone: '', type: 1 }; error.value='' }
+const reset = ()=> { form.value = seed(); error.value='' }
 const openCreateModal = ()=>{ reset(); showModal.value = true }
 const closeModal = ()=>{ showModal.value = false; reset() }
-const edit = (t:any)=> { form.value = { ...t }; error.value=''; showModal.value = true }
+const edit = (t:any)=> { form.value = { ...t, birthdayUtc: toDateInput(t.birthdayUtc), taxId: t.taxId ?? '', notes: t.notes ?? '' }; error.value=''; showModal.value = true }
 const save = async()=>{
   if (!String(form.value.name || '').trim()) { error.value = '請輸入姓名/公司'; return }
-  if (form.value.id) await api.put(`/tenants/${form.value.id}`, form.value)
-  else await api.post('/tenants', form.value)
+  const payload = { ...form.value, birthdayUtc: form.value.birthdayUtc ? toIsoDate(form.value.birthdayUtc) : null }
+  if (form.value.id) await api.put(`/tenants/${form.value.id}`, payload)
+  else await api.post('/tenants', payload)
   closeModal(); await load()
 }
 const remove = async(id:number)=>{ await api.delete(`/tenants/${id}`); await load() }
