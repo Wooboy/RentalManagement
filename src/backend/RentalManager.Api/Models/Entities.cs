@@ -158,3 +158,16 @@ public class ElectricityAllocation
     public decimal PublicAmount { get; set; }
     public decimal PayableAmount { get; set; }
 }
+
+public class ElectricityMeterReading
+{
+    public int Id { get; set; }
+    public int PropertyUnitId { get; set; }
+    public PropertyUnit? PropertyUnit { get; set; }
+    public int PropertyRoomId { get; set; }
+    public PropertyRoom? PropertyRoom { get; set; }
+    public DateTime ReadingDateUtc { get; set; }
+    public decimal ReadingValue { get; set; }
+    public string? Notes { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+}

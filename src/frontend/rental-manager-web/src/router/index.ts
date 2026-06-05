@@ -7,6 +7,7 @@ import ContractsView from '../views/ContractsView.vue'
 import ChargesView from '../views/ChargesView.vue'
 import ExpensesView from '../views/ExpensesView.vue'
 import ElectricityView from '../views/ElectricityView.vue'
+import ElectricityMeterReadingsView from '../views/ElectricityMeterReadingsView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
 
 export const routes: RouteRecordRaw[] = [
@@ -18,6 +19,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/charges', component: ChargesView },
   { path: '/expenses', component: ExpensesView },
   { path: '/electricity', component: ElectricityView },
+  { path: '/electricity-meter-readings', component: ElectricityMeterReadingsView },
   { path: '/admin-users', component: AdminUsersView, meta: { requiresAdmin: true } }
 ]
 

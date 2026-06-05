@@ -1,0 +1,42 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": ".NET Backend",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "backend: build",
+      "program": "${workspaceFolder}/src/backend/RentalManager.Api/bin/Debug/net10.0/RentalManager.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/src/backend/RentalManager.Api",
+      "stopAtEntry": false,
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://localhost:5091"
+      },
+      "serverReadyAction": {
+        "action": "openExternally",
+        "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+      }
+    },
+    {
+      "name": "Vue Frontend",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "preLaunchTask": "frontend: dev",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/src/frontend/rental-manager-web",
+      "sourceMaps": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack",
+      "configurations": [
+        ".NET Backend",
+        "Vue Frontend"
+      ],
+      "stopAll": true
+    }
+  ]
+}

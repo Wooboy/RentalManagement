@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ExpenseRecord> ExpenseRecords => Set<ExpenseRecord>();
     public DbSet<ElectricityBill> ElectricityBills => Set<ElectricityBill>();
     public DbSet<ElectricityAllocation> ElectricityAllocations => Set<ElectricityAllocation>();
+    public DbSet<ElectricityMeterReading> ElectricityMeterReadings => Set<ElectricityMeterReading>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -86,5 +87,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(x => x.TenantId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ElectricityMeterReading>()
+            .HasOne(x => x.PropertyUnit)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyUnitId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ElectricityMeterReading>()
+            .HasOne(x => x.PropertyRoom)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyRoomId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

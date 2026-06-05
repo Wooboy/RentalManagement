@@ -19,6 +19,7 @@
           <li><RouterLink to="/charges" :class="linkClass('/charges')">應收</RouterLink></li>
           <li><RouterLink to="/expenses" :class="linkClass('/expenses')">支出</RouterLink></li>
           <li><RouterLink to="/electricity" :class="linkClass('/electricity')">電費試算</RouterLink></li>
+          <li><RouterLink to="/electricity-meter-readings" :class="linkClass('/electricity-meter-readings')">電錶抄表</RouterLink></li>
           <li v-if="isAdmin"><RouterLink to="/admin-users" :class="linkClass('/admin-users')">帳號管理</RouterLink></li>
         </ul>
       </nav>
