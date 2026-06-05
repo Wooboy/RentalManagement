@@ -8,8 +8,8 @@
 - 啟動：
   - `dotnet run`
 - 連線字串：
-  - `src/backend/RentalManager.Api/appsettings.json`
-  - 預設：`Host=localhost;Port=5432;Database=rental_manager;Username=postgres;Password=postgres`
+  - 共用預設：`src/backend/RentalManager.Api/appsettings.json`
+  - 本機開發：`src/backend/RentalManager.Api/appsettings.Development.json`
 - Migration：
   - 新增 migration：`dotnet ef migrations add <Name>`
   - 套用 migration：`dotnet ef database update`
