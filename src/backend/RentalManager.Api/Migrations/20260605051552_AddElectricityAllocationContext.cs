@@ -10,72 +10,64 @@ namespace RentalManager.Api.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "ContractId",
-                table: "ElectricityAllocations",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
-
-            migrationBuilder.AddColumn<decimal>(
-                name: "MeterEnd",
-                table: "ElectricityAllocations",
-                type: "TEXT",
-                nullable: true);
-
-            migrationBuilder.AddColumn<decimal>(
-                name: "MeterStart",
-                table: "ElectricityAllocations",
-                type: "TEXT",
-                nullable: true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "OccupancyEndUtc",
-                table: "ElectricityAllocations",
-                type: "TEXT",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "OccupancyStartUtc",
-                table: "ElectricityAllocations",
-                type: "TEXT",
-                nullable: false,
-                defaultValue: new DateTime(1, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-
-            migrationBuilder.AddColumn<int>(
-                name: "PropertyRoomId",
-                table: "ElectricityAllocations",
-                type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
+            migrationBuilder.Sql("""
+                CREATE TABLE "ef_temp_ElectricityAllocations" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_ElectricityAllocations" PRIMARY KEY AUTOINCREMENT,
+                    "ElectricityBillId" INTEGER NOT NULL,
+                    "ContractId" INTEGER NOT NULL,
+                    "PropertyRoomId" INTEGER NOT NULL,
+                    "TenantId" INTEGER NULL,
+                    "OccupancyStartUtc" TEXT NOT NULL,
+                    "OccupancyEndUtc" TEXT NOT NULL,
+                    "MeterStart" TEXT NULL,
+                    "MeterEnd" TEXT NULL,
+                    "TenantUnits" TEXT NOT NULL,
+                    "OccupantCount" INTEGER NOT NULL,
+                    "OccupancyDays" INTEGER NOT NULL,
+                    "PrivateAmount" TEXT NOT NULL,
+                    "PublicAmount" TEXT NOT NULL,
+                    "PayableAmount" TEXT NOT NULL,
+                    CONSTRAINT "FK_ElectricityAllocations_Contracts_ContractId" FOREIGN KEY ("ContractId") REFERENCES "Contracts" ("Id") ON DELETE RESTRICT,
+                    CONSTRAINT "FK_ElectricityAllocations_ElectricityBills_ElectricityBillId" FOREIGN KEY ("ElectricityBillId") REFERENCES "ElectricityBills" ("Id") ON DELETE CASCADE,
+                    CONSTRAINT "FK_ElectricityAllocations_PropertyRooms_PropertyRoomId" FOREIGN KEY ("PropertyRoomId") REFERENCES "PropertyRooms" ("Id") ON DELETE RESTRICT,
+                    CONSTRAINT "FK_ElectricityAllocations_Tenants_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Tenants" ("Id") ON DELETE SET NULL
+                );
+                """);
 
             migrationBuilder.Sql("""
-                UPDATE ElectricityAllocations
-                SET ContractId = (
-                    SELECT ContractId
-                    FROM ElectricityBills
-                    WHERE ElectricityBills.Id = ElectricityAllocations.ElectricityBillId
-                ),
-                OccupancyStartUtc = (
-                    SELECT BillingStartUtc
-                    FROM ElectricityBills
-                    WHERE ElectricityBills.Id = ElectricityAllocations.ElectricityBillId
-                ),
-                OccupancyEndUtc = (
-                    SELECT BillingEndUtc
-                    FROM ElectricityBills
-                    WHERE ElectricityBills.Id = ElectricityAllocations.ElectricityBillId
-                ),
-                PropertyRoomId = COALESCE((
-                    SELECT ContractRooms.PropertyRoomId
-                    FROM ElectricityBills
-                    INNER JOIN ContractRooms ON ContractRooms.ContractId = ElectricityBills.ContractId
-                    WHERE ElectricityBills.Id = ElectricityAllocations.ElectricityBillId
-                    ORDER BY ContractRooms.Id
-                    LIMIT 1
-                ), 0)
+                INSERT INTO "ef_temp_ElectricityAllocations" (
+                    "Id", "ElectricityBillId", "ContractId", "PropertyRoomId", "TenantId",
+                    "OccupancyStartUtc", "OccupancyEndUtc", "MeterStart", "MeterEnd",
+                    "TenantUnits", "OccupantCount", "OccupancyDays", "PrivateAmount", "PublicAmount", "PayableAmount"
+                )
+                SELECT
+                    ea."Id",
+                    ea."ElectricityBillId",
+                    eb."ContractId",
+                    COALESCE((
+                        SELECT cr."PropertyRoomId"
+                        FROM "ContractRooms" cr
+                        WHERE cr."ContractId" = eb."ContractId"
+                        ORDER BY cr."Id"
+                        LIMIT 1
+                    ), 0),
+                    ea."TenantId",
+                    eb."BillingStartUtc",
+                    eb."BillingEndUtc",
+                    NULL,
+                    NULL,
+                    ea."TenantUnits",
+                    ea."OccupantCount",
+                    ea."OccupancyDays",
+                    ea."PrivateAmount",
+                    ea."PublicAmount",
+                    ea."PayableAmount"
+                FROM "ElectricityAllocations" ea
+                INNER JOIN "ElectricityBills" eb ON eb."Id" = ea."ElectricityBillId";
                 """);
+
+            migrationBuilder.Sql(@"DROP TABLE ""ElectricityAllocations"";");
+            migrationBuilder.Sql(@"ALTER TABLE ""ef_temp_ElectricityAllocations"" RENAME TO ""ElectricityAllocations"";");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ElectricityAllocations_ContractId",
@@ -83,46 +75,36 @@ namespace RentalManager.Api.Migrations
                 column: "ContractId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ElectricityAllocations_ElectricityBillId",
+                table: "ElectricityAllocations",
+                column: "ElectricityBillId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ElectricityAllocations_PropertyRoomId",
                 table: "ElectricityAllocations",
                 column: "PropertyRoomId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ElectricityAllocations_TenantId",
+                table: "ElectricityAllocations",
+                column: "TenantId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ElectricityMeterReadings_PropertyRoomId_ReadingDateUtc",
                 table: "ElectricityMeterReadings",
                 columns: new[] { "PropertyRoomId", "ReadingDateUtc" },
                 unique: true);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_ElectricityAllocations_Contracts_ContractId",
-                table: "ElectricityAllocations",
-                column: "ContractId",
-                principalTable: "Contracts",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_ElectricityAllocations_PropertyRooms_PropertyRoomId",
-                table: "ElectricityAllocations",
-                column: "PropertyRoomId",
-                principalTable: "PropertyRooms",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_ElectricityAllocations_Contracts_ContractId",
-                table: "ElectricityAllocations");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_ElectricityAllocations_PropertyRooms_PropertyRoomId",
+            migrationBuilder.DropIndex(
+                name: "IX_ElectricityAllocations_ContractId",
                 table: "ElectricityAllocations");
 
             migrationBuilder.DropIndex(
-                name: "IX_ElectricityAllocations_ContractId",
+                name: "IX_ElectricityAllocations_ElectricityBillId",
                 table: "ElectricityAllocations");
 
             migrationBuilder.DropIndex(
@@ -130,32 +112,52 @@ namespace RentalManager.Api.Migrations
                 table: "ElectricityAllocations");
 
             migrationBuilder.DropIndex(
+                name: "IX_ElectricityAllocations_TenantId",
+                table: "ElectricityAllocations");
+
+            migrationBuilder.DropIndex(
                 name: "IX_ElectricityMeterReadings_PropertyRoomId_ReadingDateUtc",
                 table: "ElectricityMeterReadings");
 
-            migrationBuilder.DropColumn(
-                name: "ContractId",
-                table: "ElectricityAllocations");
+            migrationBuilder.Sql("""
+                CREATE TABLE "ef_temp_ElectricityAllocations" (
+                    "Id" INTEGER NOT NULL CONSTRAINT "PK_ElectricityAllocations" PRIMARY KEY AUTOINCREMENT,
+                    "ElectricityBillId" INTEGER NOT NULL,
+                    "TenantId" INTEGER NULL,
+                    "TenantUnits" TEXT NOT NULL,
+                    "OccupantCount" INTEGER NOT NULL,
+                    "OccupancyDays" INTEGER NOT NULL,
+                    "PrivateAmount" TEXT NOT NULL,
+                    "PublicAmount" TEXT NOT NULL,
+                    "PayableAmount" TEXT NOT NULL,
+                    CONSTRAINT "FK_ElectricityAllocations_ElectricityBills_ElectricityBillId" FOREIGN KEY ("ElectricityBillId") REFERENCES "ElectricityBills" ("Id") ON DELETE CASCADE,
+                    CONSTRAINT "FK_ElectricityAllocations_Tenants_TenantId" FOREIGN KEY ("TenantId") REFERENCES "Tenants" ("Id") ON DELETE SET NULL
+                );
+                """);
 
-            migrationBuilder.DropColumn(
-                name: "MeterEnd",
-                table: "ElectricityAllocations");
+            migrationBuilder.Sql("""
+                INSERT INTO "ef_temp_ElectricityAllocations" (
+                    "Id", "ElectricityBillId", "TenantId", "TenantUnits", "OccupantCount",
+                    "OccupancyDays", "PrivateAmount", "PublicAmount", "PayableAmount"
+                )
+                SELECT
+                    "Id", "ElectricityBillId", "TenantId", "TenantUnits", "OccupantCount",
+                    "OccupancyDays", "PrivateAmount", "PublicAmount", "PayableAmount"
+                FROM "ElectricityAllocations";
+                """);
 
-            migrationBuilder.DropColumn(
-                name: "MeterStart",
-                table: "ElectricityAllocations");
+            migrationBuilder.Sql(@"DROP TABLE ""ElectricityAllocations"";");
+            migrationBuilder.Sql(@"ALTER TABLE ""ef_temp_ElectricityAllocations"" RENAME TO ""ElectricityAllocations"";");
 
-            migrationBuilder.DropColumn(
-                name: "OccupancyEndUtc",
-                table: "ElectricityAllocations");
+            migrationBuilder.CreateIndex(
+                name: "IX_ElectricityAllocations_ElectricityBillId",
+                table: "ElectricityAllocations",
+                column: "ElectricityBillId");
 
-            migrationBuilder.DropColumn(
-                name: "OccupancyStartUtc",
-                table: "ElectricityAllocations");
-
-            migrationBuilder.DropColumn(
-                name: "PropertyRoomId",
-                table: "ElectricityAllocations");
+            migrationBuilder.CreateIndex(
+                name: "IX_ElectricityAllocations_TenantId",
+                table: "ElectricityAllocations",
+                column: "TenantId");
         }
     }
 }
