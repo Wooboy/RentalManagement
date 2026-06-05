@@ -15,7 +15,7 @@
       <thead><tr><th>合約</th><th>類別</th><th>金額</th><th>發生日期</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         <tr v-for="c in items" :key="c.id">
-          <td>{{ c.contractId }}</td><td>{{ c.category }}</td><td>{{ c.amount }}</td><td>{{ c.billingStartUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
+          <td>{{ c.contractId }}</td><td>{{ chargeCategoryText(c.category) }}</td><td>{{ c.amount }}</td><td>{{ c.billingStartUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
           <td class="flex gap-2 justify-end">
             <button class="btn btn-sm" @click="edit(c)">編輯</button>
             <button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button>
@@ -33,7 +33,7 @@
             <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.propertyName }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">類別</span><select v-model.number="form.category" class="select select-bordered">
-            <option :value="1">租金</option><option :value="2">水費</option><option :value="3">電費</option><option :value="99">其他</option>
+            <option v-for="option in chargeCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">金額 *</span><input v-model.number="form.amount" type="number" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">發生日期</span><input v-model="form.occurredDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
@@ -64,9 +64,16 @@ const items = ref<any[]>([])
 const contracts = ref<any[]>([])
 const error = ref('')
 const showModal = ref(false)
+const chargeCategoryOptions = [
+  { value: 1, label: '租金' },
+  { value: 2, label: '水費' },
+  { value: 3, label: '電費' },
+  { value: 99, label: '其他' }
+]
 const toDateInput = (v: string) => (v ? v.slice(0,10) : '')
 const toIsoDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString()
 const seed = ()=>({ id:0, contractId:0, category:1, occurredDate:toDateInput(new Date().toISOString()), amount:0, notes:'', isPaid:0 })
+const chargeCategoryText = (v:number) => chargeCategoryOptions.find(option => option.value === Number(v))?.label ?? String(v)
 const form = ref<any>(seed())
 const load = async()=>{
   const params:any = { startDateUtc: toIsoDate(startDate.value), endDateUtc: toIsoDate(endDate.value) }

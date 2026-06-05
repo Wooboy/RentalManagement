@@ -23,7 +23,7 @@
         <tr v-for="e in items" :key="e.id">
           <td>{{ e.propertyUnitName || e.propertyUnitId }}</td>
           <td>{{ e.propertyRoomName || '-' }}</td>
-          <td>{{ e.category }}</td><td>{{ splitStatusText(e.splitStatus) }}</td><td>{{ e.amount }}</td><td>{{ e.usageUnits ?? '-' }}</td><td>{{ e.occurredAtUtc?.slice(0,10) }}</td>
+          <td>{{ expenseCategoryText(e.category) }}</td><td>{{ splitStatusText(e.splitStatus) }}</td><td>{{ e.amount }}</td><td>{{ e.usageUnits ?? '-' }}</td><td>{{ e.occurredAtUtc?.slice(0,10) }}</td>
           <td class="flex gap-2 justify-end"><button class="btn btn-sm" @click="edit(e)">編輯</button><button class="btn btn-sm btn-error" @click="remove(e.id)">刪除</button></td>
         </tr>
       </tbody>
@@ -42,7 +42,7 @@
             <option v-for="r in rooms" :key="r.id" :value="r.id">{{ r.name }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">支出類別</span><select v-model.number="form.category" class="select select-bordered">
-            <option :value="1">水費</option><option :value="2">電費</option><option :value="3">瓦斯</option><option :value="4">網路</option><option :value="5">電視</option><option :value="6">管理費</option><option :value="7">停車</option><option :value="8">稅金</option><option :value="9">修繕</option><option :value="99">其他</option>
+            <option v-for="option in expenseCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">發生日</span><input v-model="form.occurredAtUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStartUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
@@ -76,6 +76,18 @@ const properties = ref<any[]>([])
 const rooms = ref<any[]>([])
 const error = ref('')
 const showModal = ref(false)
+const expenseCategoryOptions = [
+  { value: 1, label: '水費' },
+  { value: 2, label: '電費' },
+  { value: 3, label: '瓦斯' },
+  { value: 4, label: '網路' },
+  { value: 5, label: '電視' },
+  { value: 6, label: '管理費' },
+  { value: 7, label: '停車' },
+  { value: 8, label: '稅金' },
+  { value: 9, label: '修繕' },
+  { value: 99, label: '其他' }
+]
 const toDateInput = (v: string) => (v ? v.slice(0,10) : '')
 const toIsoDate = (v: string) => {
   const d = new Date(`${v}T00:00:00Z`)
@@ -84,6 +96,7 @@ const toIsoDate = (v: string) => {
 }
 const seed = ()=>({ id:0, propertyUnitId:0, propertyRoomId:0, category:1, billingStartUtc:toDateInput(new Date().toISOString()), billingEndUtc:toDateInput(new Date().toISOString()), amount:0, usageUnits:null as number | null, splitStatus:1, notes:'', occurredAtUtc:toDateInput(new Date().toISOString()) })
 const splitStatusText = (v:number) => v === 2 ? '已分帳' : v === 3 ? '無需分帳' : '未分帳'
+const expenseCategoryText = (v:number) => expenseCategoryOptions.find(option => option.value === Number(v))?.label ?? String(v)
 const form = ref<any>(seed())
 const load = async()=>{
   const {data}=await api.get('/expenses',{ params:{ startDateUtc: toIsoDate(searchStartDate.value), endDateUtc: toIsoDate(searchEndDate.value) } })
