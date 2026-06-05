@@ -20,7 +20,7 @@ public class TenantsController(AppDbContext db) : ControllerBase
             query = query.Where(x => x.Name.Contains(keyword) || (x.Phone != null && x.Phone.Contains(keyword)));
         }
 
-        return Ok(await query.OrderByDescending(x => x.Id).ToListAsync());
+        return Ok(await query.OrderBy(x => x.Name).ThenBy(x => x.Id).ToListAsync());
     }
 
     [HttpGet("{id:int}")]
