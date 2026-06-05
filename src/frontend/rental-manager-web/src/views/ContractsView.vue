@@ -22,10 +22,10 @@
     <div class="text-error text-sm mb-3">{{ error }}</div>
 
     <table class="table table-zebra">
-      <thead><tr><th>租客</th><th>房源/房間</th><th>月租</th><th>付款間隔</th><th>每期應付</th><th>備註</th><th></th></tr></thead>
+      <thead><tr><th>租客</th><th>房源/房間</th><th>合約起日</th><th>合約迄日</th><th>月租</th><th>付款間隔</th><th>每期應付</th><th>備註</th><th></th></tr></thead>
       <tbody>
         <tr v-for="c in items" :key="c.id">
-          <td>{{ c.tenant?.name }}</td><td>{{ c.propertyName }}</td><td>{{ c.monthlyRent }}</td><td>{{ paymentIntervalText(c.paymentIntervalMonths) }}</td><td>{{ c.periodPayableAmount }}</td><td>{{ c.notes || '-' }}</td>
+          <td>{{ c.tenant?.name }}</td><td>{{ c.propertyName }}</td><td>{{ c.startDateUtc?.slice(0,10) }}</td><td>{{ c.endDateUtc?.slice(0,10) }}</td><td>{{ c.monthlyRent }}</td><td>{{ paymentIntervalText(c.paymentIntervalMonths) }}</td><td>{{ c.periodPayableAmount }}</td><td>{{ c.notes || '-' }}</td>
           <td class="flex gap-2 justify-end"><button class="btn btn-sm" @click="edit(c)">編輯</button><button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button></td>
         </tr>
       </tbody>
