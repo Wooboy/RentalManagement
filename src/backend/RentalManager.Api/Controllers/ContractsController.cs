@@ -16,6 +16,7 @@ public record ContractUpsertRequest(
     int PaymentIntervalMonths,
     decimal Deposit,
     int OccupantCount,
+    string? Notes,
     int ElectricityRuleType,
     int Status
 );
@@ -43,7 +44,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
 
         var rows = contracts.Select(c => new {
             c.Id, c.ContractNo, c.TenantId, c.Tenant, c.PropertyUnitId, c.PropertyName, c.PropertyAddress,
-            c.StartDateUtc, c.EndDateUtc, c.MonthlyRent, c.PaymentIntervalMonths, c.PeriodPayableAmount, c.Deposit, c.OccupantCount, c.ElectricityRuleType, c.Status,
+            c.StartDateUtc, c.EndDateUtc, c.MonthlyRent, c.PaymentIntervalMonths, c.PeriodPayableAmount, c.Deposit, c.OccupantCount, c.Notes, c.ElectricityRuleType, c.Status,
             c.CreatedAtUtc, c.UpdatedAtUtc,
             PropertyRoomIds = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Select(r => r.PropertyRoomId).ToList() : new List<int>(),
             Rooms = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Cast<object>().ToList() : new List<object>()
@@ -77,6 +78,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
             PeriodPayableAmount = model.MonthlyRent * model.PaymentIntervalMonths,
             Deposit = model.Deposit,
             OccupantCount = model.OccupantCount,
+            Notes = string.IsNullOrWhiteSpace(model.Notes) ? null : model.Notes.Trim(),
             ElectricityRuleType = (ElectricityRuleType)model.ElectricityRuleType,
             Status = (ContractStatus)model.Status,
             CreatedAtUtc = DateTime.UtcNow,
@@ -114,6 +116,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
         item.PeriodPayableAmount = model.MonthlyRent * model.PaymentIntervalMonths;
         item.Deposit = model.Deposit;
         item.OccupantCount = model.OccupantCount;
+        item.Notes = string.IsNullOrWhiteSpace(model.Notes) ? null : model.Notes.Trim();
         item.ElectricityRuleType = (ElectricityRuleType)model.ElectricityRuleType;
         item.Status = (ContractStatus)model.Status;
         item.UpdatedAtUtc = DateTime.UtcNow;

@@ -22,10 +22,10 @@
     <div class="text-error text-sm mb-3">{{ error }}</div>
 
     <table class="table table-zebra">
-      <thead><tr><th>租客</th><th>房源/房間</th><th>月租</th><th>付款間隔</th><th>每期應付</th><th></th></tr></thead>
+      <thead><tr><th>租客</th><th>房源/房間</th><th>月租</th><th>付款間隔</th><th>每期應付</th><th>備註</th><th></th></tr></thead>
       <tbody>
         <tr v-for="c in items" :key="c.id">
-          <td>{{ c.tenant?.name }}</td><td>{{ c.propertyName }}</td><td>{{ c.monthlyRent }}</td><td>{{ paymentIntervalText(c.paymentIntervalMonths) }}</td><td>{{ c.periodPayableAmount }}</td>
+          <td>{{ c.tenant?.name }}</td><td>{{ c.propertyName }}</td><td>{{ c.monthlyRent }}</td><td>{{ paymentIntervalText(c.paymentIntervalMonths) }}</td><td>{{ c.periodPayableAmount }}</td><td>{{ c.notes || '-' }}</td>
           <td class="flex gap-2 justify-end"><button class="btn btn-sm" @click="edit(c)">編輯</button><button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button></td>
         </tr>
       </tbody>
@@ -68,6 +68,7 @@
           <label class="form-control"><span class="label-text mb-1">合約狀態</span><select v-model.number="form.status" class="select select-bordered">
             <option :value="1">狀態：生效中</option><option :value="2">狀態：已到期</option><option :value="3">狀態：已終止</option>
           </select></label>
+          <label class="form-control md:col-span-3"><span class="label-text mb-1">備註</span><input v-model="form.notes" class="input input-bordered" placeholder="請輸入備註" /></label>
         </div>
 
         <div class="modal-action">
@@ -94,7 +95,7 @@ const showModal = ref(false)
 const error = ref('')
 const toDateInput = (v: string) => (v ? v.slice(0, 10) : '')
 const toIsoDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString()
-const seed = ()=>({ id:0, contractNo:'', tenantId:0, startDateUtc:toDateInput(new Date().toISOString()), endDateUtc:toDateInput(new Date().toISOString()), monthlyRent:0, paymentIntervalMonths:1, deposit:0, occupantCount:1, status:1 })
+const seed = ()=>({ id:0, contractNo:'', tenantId:0, startDateUtc:toDateInput(new Date().toISOString()), endDateUtc:toDateInput(new Date().toISOString()), monthlyRent:0, paymentIntervalMonths:1, deposit:0, occupantCount:1, notes:'', status:1 })
 const form = ref<any>(seed())
 const periodPayableAmount = computed(() => Number(form.value.monthlyRent || 0) * Number(form.value.paymentIntervalMonths || 1))
 const paymentIntervalText = (m:number)=> m===12 ? '每年' : m===3 ? '每季' : '每月'
@@ -114,6 +115,6 @@ const openCreateModal = ()=>{ reset(); showModal.value = true }
 const closeModal = ()=>{ showModal.value = false; reset() }
 const edit = async(c:any)=>{ form.value={...c,startDateUtc:toDateInput(c.startDateUtc),endDateUtc:toDateInput(c.endDateUtc)}; selectedPropertyId.value=c.propertyUnitId||0; await loadRooms(); selectedRoomIds.value=c.propertyRoomIds||[]; error.value=''; showModal.value = true }
 const validate = ()=>{ if(!form.value.tenantId) return '請選擇租客'; if(!selectedPropertyId.value) return '請選擇房源'; if(!selectedRoomIds.value.length) return '請至少選擇一間房間'; if(form.value.monthlyRent<0) return '月租不可小於0'; if(![1,3,12].includes(Number(form.value.paymentIntervalMonths||0))) return '付款間隔僅允許每月/每季/每年'; return '' }
-const save = async()=>{ error.value=validate(); if(error.value) return; const payload={ contractNo:form.value.contractNo, tenantId:form.value.tenantId, propertyRoomIds:selectedRoomIds.value, startDateUtc:toIsoDate(form.value.startDateUtc), endDateUtc:toIsoDate(form.value.endDateUtc), monthlyRent:form.value.monthlyRent, paymentIntervalMonths:form.value.paymentIntervalMonths, deposit:form.value.deposit, occupantCount:form.value.occupantCount, electricityRuleType:3, status:form.value.status }; if(form.value.id) await api.put(`/contracts/${form.value.id}`,payload); else await api.post('/contracts',payload); closeModal(); await load() }
+const save = async()=>{ error.value=validate(); if(error.value) return; const payload={ contractNo:form.value.contractNo, tenantId:form.value.tenantId, propertyRoomIds:selectedRoomIds.value, startDateUtc:toIsoDate(form.value.startDateUtc), endDateUtc:toIsoDate(form.value.endDateUtc), monthlyRent:form.value.monthlyRent, paymentIntervalMonths:form.value.paymentIntervalMonths, deposit:form.value.deposit, occupantCount:form.value.occupantCount, notes:form.value.notes, electricityRuleType:3, status:form.value.status }; if(form.value.id) await api.put(`/contracts/${form.value.id}`,payload); else await api.post('/contracts',payload); closeModal(); await load() }
 const remove = async(id:number)=>{ await api.delete(`/contracts/${id}`); await load() }
 </script>

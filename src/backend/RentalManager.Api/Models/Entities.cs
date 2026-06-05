@@ -74,6 +74,7 @@ public class Contract
     public decimal PeriodPayableAmount { get; set; }
     public decimal Deposit { get; set; }
     public int OccupantCount { get; set; }
+    public string? Notes { get; set; }
     public ElectricityRuleType ElectricityRuleType { get; set; }
     public ContractStatus Status { get; set; } = ContractStatus.Active;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
