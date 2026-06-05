@@ -3,10 +3,13 @@
 ## 規格文件
 - `docs/spec.md`
 
-## 後端（.NET 10 + SQLite）
+## 後端（.NET 10 + PostgreSQL）
 - 路徑：`src/backend/RentalManager.Api`
 - 啟動：
   - `dotnet run`
+- 連線字串：
+  - `src/backend/RentalManager.Api/appsettings.json`
+  - 預設：`Host=localhost;Port=5432;Database=rental_manager;Username=postgres;Password=postgres`
 - Migration：
   - 新增 migration：`dotnet ef migrations add <Name>`
   - 套用 migration：`dotnet ef database update`
@@ -33,3 +36,4 @@
 
 ## 備註
 - 合約已支援 `PropertyUnitId` 房源關聯（同時保留 `PropertyName/PropertyAddress` 快照欄位）
+- 使用 PostgreSQL 前，請先建立資料庫 `rental_manager`

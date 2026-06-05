@@ -6,7 +6,7 @@
 ## 2. 系統架構
 - 前端：Vue 3 + Vite + DaisyUI（Tailwind CSS）
 - 後端：ASP.NET Core Web API (.NET 10)
-- 資料庫：SQLite（EF Core Code First）
+- 資料庫：PostgreSQL（EF Core Code First）
 - 驗證：管理者帳號密碼登入（JWT）
 - 部署：前後端分離，API + SPA
 
