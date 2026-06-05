@@ -83,6 +83,18 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ElectricityAllocation>()
+            .HasOne(x => x.Contract)
+            .WithMany()
+            .HasForeignKey(x => x.ContractId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ElectricityAllocation>()
+            .HasOne(x => x.PropertyRoom)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyRoomId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ElectricityAllocation>()
             .HasOne(x => x.Tenant)
             .WithMany()
             .HasForeignKey(x => x.TenantId)
@@ -99,5 +111,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany()
             .HasForeignKey(x => x.PropertyRoomId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ElectricityMeterReading>()
+            .HasIndex(x => new { x.PropertyRoomId, x.ReadingDateUtc })
+            .IsUnique();
     }
 }

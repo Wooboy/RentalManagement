@@ -149,8 +149,16 @@ public class ElectricityAllocation
     public int Id { get; set; }
     public int ElectricityBillId { get; set; }
     public ElectricityBill? ElectricityBill { get; set; }
+    public int ContractId { get; set; }
+    public Contract? Contract { get; set; }
+    public int PropertyRoomId { get; set; }
+    public PropertyRoom? PropertyRoom { get; set; }
     public int? TenantId { get; set; }
     public Tenant? Tenant { get; set; }
+    public DateTime OccupancyStartUtc { get; set; }
+    public DateTime OccupancyEndUtc { get; set; }
+    public decimal? MeterStart { get; set; }
+    public decimal? MeterEnd { get; set; }
     public decimal TenantUnits { get; set; }
     public int OccupantCount { get; set; }
     public int OccupancyDays { get; set; }

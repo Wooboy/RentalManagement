@@ -194,11 +194,26 @@ namespace RentalManager.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("ContractId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("ElectricityBillId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<decimal?>("MeterEnd")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("MeterStart")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccupancyEndUtc")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("OccupancyDays")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OccupancyStartUtc")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("OccupantCount")
                         .HasColumnType("INTEGER");
@@ -212,6 +227,9 @@ namespace RentalManager.Api.Migrations
                     b.Property<decimal>("PublicAmount")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("PropertyRoomId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int?>("TenantId")
                         .HasColumnType("INTEGER");
 
@@ -220,7 +238,11 @@ namespace RentalManager.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ContractId");
+
                     b.HasIndex("ElectricityBillId");
+
+                    b.HasIndex("PropertyRoomId");
 
                     b.HasIndex("TenantId");
 
@@ -305,7 +327,8 @@ namespace RentalManager.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PropertyRoomId");
+                    b.HasIndex("PropertyRoomId", "ReadingDateUtc")
+                        .IsUnique();
 
                     b.HasIndex("PropertyUnitId");
 
@@ -521,10 +544,22 @@ namespace RentalManager.Api.Migrations
 
             modelBuilder.Entity("RentalManager.Api.Models.ElectricityAllocation", b =>
                 {
+                    b.HasOne("RentalManager.Api.Models.Contract", "Contract")
+                        .WithMany()
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("RentalManager.Api.Models.ElectricityBill", "ElectricityBill")
                         .WithMany()
                         .HasForeignKey("ElectricityBillId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RentalManager.Api.Models.PropertyRoom", "PropertyRoom")
+                        .WithMany()
+                        .HasForeignKey("PropertyRoomId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("RentalManager.Api.Models.Tenant", "Tenant")
@@ -532,7 +567,11 @@ namespace RentalManager.Api.Migrations
                         .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.Navigation("Contract");
+
                     b.Navigation("ElectricityBill");
+
+                    b.Navigation("PropertyRoom");
 
                     b.Navigation("Tenant");
                 });
