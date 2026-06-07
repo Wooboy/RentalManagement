@@ -17,6 +17,7 @@
         <tr v-for="c in items" :key="c.id">
           <td>{{ c.contractId }}</td><td>{{ chargeCategoryText(c.category) }}</td><td>{{ c.amount }}</td><td>{{ c.billingStartUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
           <td class="flex gap-2 justify-end">
+            <button v-if="!c.isPaid" class="btn btn-sm btn-success" @click="markPaid(c)">收款</button>
             <button class="btn btn-sm" @click="edit(c)">編輯</button>
             <button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button>
           </td>
@@ -122,6 +123,16 @@ const save = async()=>{
   }
   if(form.value.id) await api.put(`/charges/${form.value.id}`,payload); else await api.post('/charges',payload)
   closeModal(); await load()
+}
+const markPaid = async(c:any)=>{
+  error.value = ''
+  const payload = {
+    ...c,
+    isPaid: true,
+    paidAtUtc: new Date().toISOString()
+  }
+  await api.put(`/charges/${c.id}`, payload)
+  await load()
 }
 const remove = async(id:number)=>{ await api.delete(`/charges/${id}`); await load() }
 </script>
