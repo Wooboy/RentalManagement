@@ -31,16 +31,37 @@ public class ContractsController(AppDbContext db) : ControllerBase
     {
         var query = db.Contracts.Include(x => x.Tenant).Include(x => x.PropertyUnit).AsQueryable();
         if (!string.IsNullOrWhiteSpace(keyword)) query = query.Where(x => x.ContractNo.Contains(keyword) || x.PropertyName.Contains(keyword));
-        if (propertyUnitId.HasValue) query = query.Where(x => x.PropertyUnitId == propertyUnitId.Value);
         if (status.HasValue) query = query.Where(x => (int)x.Status == status.Value);
+
+        if (propertyUnitId.HasValue || propertyRoomId.HasValue)
+        {
+            var filteredContractIds = db.ContractRooms
+                .Include(x => x.PropertyRoom)
+                .Where(x =>
+                    (!propertyUnitId.HasValue || x.PropertyRoom!.PropertyUnitId == propertyUnitId.Value) &&
+                    (!propertyRoomId.HasValue || x.PropertyRoomId == propertyRoomId.Value))
+                .Select(x => x.ContractId)
+                .Distinct();
+
+            query = query.Where(x => filteredContractIds.Contains(x.Id));
+        }
 
         var contracts = await query.OrderByDescending(x => x.Id).ToListAsync();
         var ids = contracts.Select(x => x.Id).ToList();
-        var roomQuery = db.ContractRooms.Include(x => x.PropertyRoom).Where(x => ids.Contains(x.ContractId));
-        if (propertyRoomId.HasValue) roomQuery = roomQuery.Where(x => x.PropertyRoomId == propertyRoomId.Value);
+        var roomQuery = db.ContractRooms
+            .Include(x => x.PropertyRoom)
+            .ThenInclude(x => x!.PropertyUnit)
+            .Where(x => ids.Contains(x.ContractId));
         var roomMap = await roomQuery
             .GroupBy(x => x.ContractId)
-            .ToDictionaryAsync(g => g.Key, g => g.Select(x => new { x.PropertyRoomId, RoomCode = x.PropertyRoom!.Code, RoomName = x.PropertyRoom!.Name }).ToList());
+            .ToDictionaryAsync(g => g.Key, g => g.Select(x => new
+            {
+                x.PropertyRoomId,
+                x.PropertyRoom!.PropertyUnitId,
+                PropertyUnitName = x.PropertyRoom.PropertyUnit != null ? x.PropertyRoom.PropertyUnit.Name : string.Empty,
+                RoomCode = x.PropertyRoom.Code,
+                RoomName = x.PropertyRoom.Name
+            }).ToList());
 
         var rows = contracts.Select(c => new {
             c.Id, c.ContractNo, c.TenantId, c.Tenant, c.PropertyUnitId, c.PropertyName, c.PropertyAddress,
@@ -49,11 +70,6 @@ public class ContractsController(AppDbContext db) : ControllerBase
             PropertyRoomIds = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Select(r => r.PropertyRoomId).ToList() : new List<int>(),
             Rooms = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Cast<object>().ToList() : new List<object>()
         }).ToList();
-
-        if (propertyRoomId.HasValue)
-        {
-            rows = rows.Where(x => x.PropertyRoomIds.Contains(propertyRoomId.Value)).ToList();
-        }
 
         return Ok(rows);
     }
@@ -68,9 +84,9 @@ public class ContractsController(AppDbContext db) : ControllerBase
         {
             ContractNo = string.IsNullOrWhiteSpace(model.ContractNo) ? $"AUTO-{DateTime.UtcNow:yyyyMMddHHmmss}" : model.ContractNo.Trim(),
             TenantId = model.TenantId,
-            PropertyUnitId = valid.propertyUnit!.Id,
+            PropertyUnitId = valid.propertyUnitId,
             PropertyName = valid.propertyDisplay!,
-            PropertyAddress = valid.propertyUnit.Address,
+            PropertyAddress = valid.propertyAddress!,
             StartDateUtc = model.StartDateUtc,
             EndDateUtc = model.EndDateUtc,
             MonthlyRent = model.MonthlyRent,
@@ -106,9 +122,9 @@ public class ContractsController(AppDbContext db) : ControllerBase
             item.ContractNo = model.ContractNo.Trim();
         }
         item.TenantId = model.TenantId;
-        item.PropertyUnitId = valid.propertyUnit!.Id;
+        item.PropertyUnitId = valid.propertyUnitId;
         item.PropertyName = valid.propertyDisplay!;
-        item.PropertyAddress = valid.propertyUnit.Address;
+        item.PropertyAddress = valid.propertyAddress!;
         item.StartDateUtc = model.StartDateUtc;
         item.EndDateUtc = model.EndDateUtc;
         item.MonthlyRent = model.MonthlyRent;
@@ -139,22 +155,34 @@ public class ContractsController(AppDbContext db) : ControllerBase
         return NoContent();
     }
 
-    private async Task<(bool ok, string? error, PropertyUnit? propertyUnit, string? propertyDisplay)> ValidateAndResolve(ContractUpsertRequest model)
+    private async Task<(bool ok, string? error, int? propertyUnitId, string? propertyDisplay, string? propertyAddress)> ValidateAndResolve(ContractUpsertRequest model)
     {
-        if (model.TenantId <= 0) return (false, "請選擇租客", null, null);
-        if (model.PaymentIntervalMonths != 1 && model.PaymentIntervalMonths != 3 && model.PaymentIntervalMonths != 12) return (false, "付款間隔只允許每月、每季、每年", null, null);
-        if (model.PropertyRoomIds is null || model.PropertyRoomIds.Count == 0) return (false, "請至少選擇一間房間", null, null);
-        if (!await db.Tenants.AnyAsync(x => x.Id == model.TenantId)) return (false, "租客不存在", null, null);
+        if (model.TenantId <= 0) return (false, "請選擇租客", null, null, null);
+        if (model.PaymentIntervalMonths != 1 && model.PaymentIntervalMonths != 3 && model.PaymentIntervalMonths != 12) return (false, "付款間隔只允許每月、每季、每年", null, null, null);
+        if (model.PropertyRoomIds is null || model.PropertyRoomIds.Count == 0) return (false, "請至少選擇一間房間", null, null, null);
+        if (!await db.Tenants.AnyAsync(x => x.Id == model.TenantId)) return (false, "租客不存在", null, null, null);
 
         var roomIds = model.PropertyRoomIds.Distinct().ToList();
         var rooms = await db.PropertyRooms.Include(x => x.PropertyUnit).Where(x => roomIds.Contains(x.Id)).ToListAsync();
-        if (rooms.Count != roomIds.Count || rooms.Any(x => x.PropertyUnit is null)) return (false, "房間資料不存在", null, null);
+        if (rooms.Count != roomIds.Count || rooms.Any(x => x.PropertyUnit is null)) return (false, "房間資料不存在", null, null, null);
 
-        var unitId = rooms.First().PropertyUnitId;
-        if (rooms.Any(x => x.PropertyUnitId != unitId)) return (false, "所選房間必須屬於同一房源", null, null);
+        var propertyGroups = rooms
+            .GroupBy(x => x.PropertyUnitId)
+            .Select(g => new
+            {
+                PropertyUnitId = g.Key,
+                Property = g.First().PropertyUnit!,
+                Rooms = g.OrderBy(x => x.Name).ThenBy(x => x.Id).ToList()
+            })
+            .OrderBy(x => x.Property.Name)
+            .ThenBy(x => x.Property.Id)
+            .ToList();
 
-        var property = rooms.First().PropertyUnit!;
-        var display = $"{property.Name}-" + string.Join(",", rooms.Select(r => string.IsNullOrWhiteSpace(r.Name) ? r.Code : r.Name));
-        return (true, null, property, display);
+        var propertyDisplay = string.Join("；", propertyGroups.Select(g =>
+            $"{g.Property.Name}-" + string.Join(",", g.Rooms.Select(r => string.IsNullOrWhiteSpace(r.Name) ? r.Code : r.Name))));
+        var propertyAddress = string.Join("；", propertyGroups.Select(g => g.Property.Address).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct());
+        int? propertyUnitId = propertyGroups.Count == 1 ? propertyGroups[0].PropertyUnitId : null;
+
+        return (true, null, propertyUnitId, propertyDisplay, propertyAddress);
     }
 }
