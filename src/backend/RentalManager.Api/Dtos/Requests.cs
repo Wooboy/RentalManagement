@@ -11,3 +11,4 @@ public record ElectricityCalculateRequest(int RuleType, decimal? UnitPrice, deci
 public record ElectricityCalculateResponse(decimal UnitPrice, decimal PrivateElectricityAmount, decimal PublicElectricityAmount, decimal PayableAmount, List<decimal>? TenantPayables);
 public record ElectricityAllocationSaveInput(int ContractId, int PropertyRoomId, int? TenantId, DateTime OccupancyStartUtc, DateTime OccupancyEndUtc, decimal? MeterStart, decimal? MeterEnd, decimal TenantUnits, int OccupantCount, int OccupancyDays);
 public record ElectricityBillSaveRequest(int ContractId, int RuleType, DateTime BillingStartUtc, DateTime BillingEndUtc, decimal TotalAmount, decimal TotalUnits, decimal UnitPrice, List<ElectricityAllocationSaveInput> Allocations);
+public record ElectricityCreateChargesRequest(List<int>? ExpenseBillIds);

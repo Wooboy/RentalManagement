@@ -377,7 +377,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
     }
 
     [HttpPost("bills/{billId:int}/create-charges")]
-    public async Task<ActionResult<object>> CreateChargesFromBill(int billId, [FromQuery] string? mode)
+    public async Task<ActionResult<object>> CreateChargesFromBill(int billId, [FromBody] ElectricityCreateChargesRequest? request, [FromQuery] string? mode)
     {
         var bill = await db.ElectricityBills.FirstOrDefaultAsync(x => x.Id == billId);
         if (bill is null) return NotFound("帳單不存在");
@@ -431,6 +431,22 @@ public class ElectricityController(AppDbContext db) : ControllerBase
         }
 
         await db.SaveChangesAsync();
+
+        var expenseBillIds = (request?.ExpenseBillIds ?? [])
+            .Distinct()
+            .Where(x => x > 0)
+            .ToList();
+        if (expenseBillIds.Count > 0)
+        {
+            var expenseBills = await db.ExpenseRecords
+                .Where(x => expenseBillIds.Contains(x.Id) && x.Category == ExpenseCategory.Electricity)
+                .ToListAsync();
+            foreach (var expenseBill in expenseBills)
+            {
+                expenseBill.SplitStatus = ExpenseSplitStatus.Split;
+            }
+        }
+
         bill.ChargesCreated = true;
         bill.ChargesCreatedAtUtc = DateTime.UtcNow;
         await db.SaveChangesAsync();

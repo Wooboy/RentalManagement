@@ -7,7 +7,6 @@
         <label class="form-control"><span class="label-text mb-1">1. 計算方式</span>
           <select v-model.number="calcMode" class="select select-bordered">
             <option :value="1">依度數計算</option>
-            <option :value="2">平均計算</option>
             <option :value="3">多錶計算</option>
           </select>
         </label>
@@ -154,7 +153,7 @@ const loadExpenseBills = async () => {
       endDateUtc: new Date('2099-12-31T00:00:00Z').toISOString()
     }
   })
-  electricityExpenseBills.value = data.filter((x: any) => x.category === 2)
+  electricityExpenseBills.value = data.filter((x: any) => x.category === 2 && Number(x.splitStatus || 1) === 1)
     .sort((a:any,b:any) => {
       const aDate = String(a.occurredAtUtc || '')
       const bDate = String(b.occurredAtUtc || '')
@@ -195,7 +194,7 @@ const toggleBill = async (bill: any) => {
     return
   }
 
-  if (calcMode.value === 1 || calcMode.value === 2) {
+  if (calcMode.value === 1) {
     selectedExpenseBillIds.value = [bill.id]
     await loadPreview()
     return
@@ -218,7 +217,7 @@ const toggleBill = async (bill: any) => {
 const validate = () => {
   if (!calcMode.value) return '請選擇計算方式'
   if (!selectedExpenseBillIds.value.length) return '請選擇至少一張電費帳單'
-  if ((calcMode.value === 1 || calcMode.value === 2) && selectedExpenseBillIds.value.length > 1) return '此計算方式僅可選擇一張帳單'
+  if (calcMode.value === 1 && selectedExpenseBillIds.value.length > 1) return '此計算方式僅可選擇一張帳單'
   if (calcMode.value === 1 && Number(manualUnitPrice.value || 0) <= 0) return '依度數計算請輸入單價'
   if (!allocations.value.length) return '帳期內找不到可分攤的租客資料'
   return ''
@@ -287,29 +286,6 @@ const calculate = async () => {
     return
   }
 
-  const tenantUnitsTotal = round2(allocations.value.reduce((s:number, x:any) => s + Number(x.tenantUnits || 0), 0))
-  const payables = allocations.value.map((x:any) => {
-    const ratio = tenantUnitsTotal === 0 ? 0 : Number(x.tenantUnits || 0) / tenantUnitsTotal
-    return Math.round(aggregatedAmount.value * ratio)
-  })
-  const payableTotal = round2(payables.reduce((s:number,v:number)=>s+v,0))
-  const unitPrice = tenantUnitsTotal === 0 ? 0 : round2(aggregatedAmount.value / tenantUnitsTotal)
-  result.value = {
-    unitPrice,
-    privateElectricityAmount: payableTotal,
-    publicElectricityAmount: 0,
-    payableAmount: payableTotal,
-    tenantPayables: payables
-  }
-  allocations.value.forEach((x:any, idx:number) => {
-    const ratio = tenantUnitsTotal === 0 ? 0 : Number(x.tenantUnits || 0) / tenantUnitsTotal
-    const payable = payables[idx]
-    x.calcDetail = {
-      privateAmountText: `占比：${round2(Number(x.tenantUnits || 0))} / ${tenantUnitsTotal} = ${round2(ratio * 100)}%`,
-      publicAmountText: '公電費：0元',
-      totalText: `帳單總額 ${round2(aggregatedAmount.value)} × ${round2(ratio * 100)}% = ${payable}元`
-    }
-  })
 }
 
 const saveBill = async () => {
@@ -341,7 +317,12 @@ const saveBill = async () => {
     })
     const billId = Number(data?.billId || 0)
     if (billId > 0) {
-      await api.post(`/electricity/bills/${billId}/create-charges`)
+      await api.post(`/electricity/bills/${billId}/create-charges`, {
+        expenseBillIds: selectedExpenseBillIds.value
+      })
+      await loadExpenseBills()
+      selectedExpenseBillIds.value = []
+      resetPreview()
       notice.value = `帳單儲存成功，並已依合約轉入應收（帳單#${billId}）`
     } else {
       notice.value = '帳單儲存成功'
