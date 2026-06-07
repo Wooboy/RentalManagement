@@ -84,13 +84,13 @@ public class ElectricityMeterReadingsController(AppDbContext db) : ControllerBas
     [HttpPost]
     public async Task<ActionResult<object>> Create(ElectricityMeterReadingUpsertRequest model)
     {
-        if (model.PropertyUnitId <= 0) return BadRequest("請選擇房源");
-        if (model.PropertyRoomId <= 0) return BadRequest("請選擇房間");
-        if (model.ReadingValue < 0) return BadRequest("度數不可小於 0");
+        var validationError = await ValidateAsync(model);
+        if (validationError is not null) return BadRequest(validationError);
 
-        var room = await db.PropertyRooms.FirstOrDefaultAsync(x => x.Id == model.PropertyRoomId);
-        if (room is null) return BadRequest("房間不存在");
-        if (room.PropertyUnitId != model.PropertyUnitId) return BadRequest("房間不屬於所選房源");
+        var exists = await db.ElectricityMeterReadings.AnyAsync(x =>
+            x.PropertyRoomId == model.PropertyRoomId &&
+            x.ReadingDateUtc.Date == model.ReadingDateUtc.Date);
+        if (exists) return BadRequest("同一房間在同一天已有抄表記錄，請改用編輯");
 
         var item = new ElectricityMeterReading
         {
@@ -98,11 +98,52 @@ public class ElectricityMeterReadingsController(AppDbContext db) : ControllerBas
             PropertyRoomId = model.PropertyRoomId,
             ReadingDateUtc = model.ReadingDateUtc,
             ReadingValue = model.ReadingValue,
-            Notes = model.Notes,
+            Notes = NormalizeNotes(model.Notes),
             CreatedAtUtc = DateTime.UtcNow
         };
         db.ElectricityMeterReadings.Add(item);
         await db.SaveChangesAsync();
         return Ok(item);
     }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<object>> Update(int id, ElectricityMeterReadingUpsertRequest model)
+    {
+        var item = await db.ElectricityMeterReadings.FindAsync(id);
+        if (item is null) return NotFound("抄表記錄不存在");
+
+        var validationError = await ValidateAsync(model);
+        if (validationError is not null) return BadRequest(validationError);
+
+        var duplicate = await db.ElectricityMeterReadings.AnyAsync(x =>
+            x.Id != id &&
+            x.PropertyRoomId == model.PropertyRoomId &&
+            x.ReadingDateUtc.Date == model.ReadingDateUtc.Date);
+        if (duplicate) return BadRequest("同一房間在同一天已有其他抄表記錄");
+
+        item.PropertyUnitId = model.PropertyUnitId;
+        item.PropertyRoomId = model.PropertyRoomId;
+        item.ReadingDateUtc = model.ReadingDateUtc;
+        item.ReadingValue = model.ReadingValue;
+        item.Notes = NormalizeNotes(model.Notes);
+
+        await db.SaveChangesAsync();
+        return Ok(item);
+    }
+
+    private async Task<string?> ValidateAsync(ElectricityMeterReadingUpsertRequest model)
+    {
+        if (model.PropertyUnitId <= 0) return "請選擇房源";
+        if (model.PropertyRoomId <= 0) return "請選擇房間";
+        if (model.ReadingValue < 0) return "抄表度數不可小於 0";
+
+        var room = await db.PropertyRooms.FirstOrDefaultAsync(x => x.Id == model.PropertyRoomId);
+        if (room is null) return "房間不存在";
+        if (room.PropertyUnitId != model.PropertyUnitId) return "所選房間不屬於指定房源";
+
+        return null;
+    }
+
+    private static string? NormalizeNotes(string? notes)
+        => string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
 }
