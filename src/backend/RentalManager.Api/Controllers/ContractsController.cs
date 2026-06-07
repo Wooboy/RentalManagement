@@ -21,6 +21,11 @@ public record ContractUpsertRequest(
     int Status
 );
 
+public record ContractBatchChargeCreateRequest(
+    List<int> ContractIds,
+    DateTime? ReferenceDateUtc
+);
+
 [ApiController]
 [Route("api/contracts")]
 [Authorize]
@@ -155,6 +160,78 @@ public class ContractsController(AppDbContext db) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("batch-create-period-charges")]
+    public async Task<ActionResult<object>> BatchCreatePeriodCharges(ContractBatchChargeCreateRequest request)
+    {
+        var contractIds = (request.ContractIds ?? []).Distinct().Where(x => x > 0).ToList();
+        if (contractIds.Count == 0) return BadRequest("請至少選擇一份合約");
+
+        var referenceDate = (request.ReferenceDateUtc ?? DateTime.UtcNow).Date;
+        var contracts = await db.Contracts
+            .Where(x => contractIds.Contains(x.Id))
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+        if (contracts.Count != contractIds.Count) return BadRequest("部分合約不存在");
+
+        var existingCharges = await db.ChargeRecords
+            .Where(x => contractIds.Contains(x.ContractId) && x.Category == ChargeCategory.Rent)
+            .Select(x => new { x.ContractId, x.BillingStartUtc, x.BillingEndUtc })
+            .ToListAsync();
+
+        var created = new List<object>();
+        var skipped = new List<object>();
+
+        foreach (var contract in contracts)
+        {
+            if (contract.Status != ContractStatus.Active)
+            {
+                skipped.Add(new { contract.Id, contract.ContractNo, reason = "合約不是生效中" });
+                continue;
+            }
+
+            var period = ResolveCurrentBillingPeriod(contract, referenceDate);
+
+            var duplicated = existingCharges.Any(x =>
+                x.ContractId == contract.Id &&
+                x.BillingStartUtc.Date == period.start.Date &&
+                x.BillingEndUtc.Date == period.end.Date);
+            if (duplicated)
+            {
+                skipped.Add(new { contract.Id, contract.ContractNo, reason = "本期租金應收已存在" });
+                continue;
+            }
+
+            var charge = new ChargeRecord
+            {
+                ContractId = contract.Id,
+                Category = ChargeCategory.Rent,
+                BillingStartUtc = period.start,
+                BillingEndUtc = period.end,
+                Amount = contract.PeriodPayableAmount,
+                Notes = $"系統批次建立本期租金（{period.start:yyyy-MM-dd} ~ {period.end:yyyy-MM-dd}）",
+                IsPaid = false,
+                CreatedAtUtc = DateTime.UtcNow
+            };
+
+            db.ChargeRecords.Add(charge);
+            created.Add(new { contract.Id, contract.ContractNo, charge.BillingStartUtc, charge.BillingEndUtc, charge.Amount });
+        }
+
+        if (created.Count > 0)
+        {
+            await db.SaveChangesAsync();
+        }
+
+        return Ok(new
+        {
+            referenceDateUtc = referenceDate,
+            createdCount = created.Count,
+            skippedCount = skipped.Count,
+            created,
+            skipped
+        });
+    }
+
     private async Task<(bool ok, string? error, int? propertyUnitId, string? propertyDisplay, string? propertyAddress)> ValidateAndResolve(ContractUpsertRequest model)
     {
         if (model.TenantId <= 0) return (false, "請選擇租客", null, null, null);
@@ -184,5 +261,25 @@ public class ContractsController(AppDbContext db) : ControllerBase
         int? propertyUnitId = propertyGroups.Count == 1 ? propertyGroups[0].PropertyUnitId : null;
 
         return (true, null, propertyUnitId, propertyDisplay, propertyAddress);
+    }
+
+    private static (DateTime start, DateTime end) ResolveCurrentBillingPeriod(Contract contract, DateTime referenceDate)
+    {
+        var startDate = contract.StartDateUtc.Date;
+        var endDate = contract.EndDateUtc.Date;
+        if (referenceDate < startDate) referenceDate = startDate;
+
+        var intervalMonths = contract.PaymentIntervalMonths <= 0 ? 1 : contract.PaymentIntervalMonths;
+        var periodStart = startDate;
+
+        while (periodStart.AddMonths(intervalMonths) <= referenceDate)
+        {
+            periodStart = periodStart.AddMonths(intervalMonths);
+        }
+
+        var periodEnd = periodStart.AddMonths(intervalMonths).AddDays(-1);
+        if (periodEnd > endDate) periodEnd = endDate;
+
+        return (periodStart, periodEnd);
     }
 }
