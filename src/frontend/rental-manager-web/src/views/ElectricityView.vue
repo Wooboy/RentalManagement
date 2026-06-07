@@ -46,10 +46,11 @@
       <div class="overflow-x-auto">
         <p class="text-sm mb-2">3. 帳期內居住租客（依合約與抄表自動帶入）</p>
         <table class="table table-zebra">
-          <thead><tr><th>租客/合約</th><th>房間</th><th>居住期間</th><th>入住天數</th><th>人數</th><th>天數×人數</th><th>起訖度數</th><th>用電度數</th><th>歸屬帳單</th></tr></thead>
+          <thead><tr><th>分攤對象</th><th>租客/合約</th><th>房間</th><th>居住期間</th><th>入住天數</th><th>人數</th><th>天數×人數</th><th>起訖度數</th><th>用電度數</th><th>歸屬帳單</th></tr></thead>
           <tbody>
             <tr v-for="(a, idx) in allocations" :key="`${a.expenseBillId}-${a.contractId}-${idx}`">
-              <td>{{ a.tenantName || '-' }} / {{ a.contractNo }}</td>
+              <td>{{ a.targetName }}</td>
+              <td>{{ partyText(a) }}</td>
               <td>{{ a.propertyUnitName || '-' }} / {{ a.propertyRoomName || '-' }}</td>
               <td>{{ a.occupancyStartUtc?.slice(0,10) }} ~ {{ a.occupancyEndUtc?.slice(0,10) }}</td>
               <td>{{ a.occupancyDays }}</td>
@@ -81,6 +82,8 @@
         <p>私電總額：{{ result.privateElectricityAmount.toFixed(2) }}</p>
         <p>公電總額：{{ result.publicElectricityAmount.toFixed(2) }}</p>
         <p>應繳總額：{{ result.payableAmount.toFixed(2) }}</p>
+        <p v-if="calcMode === 3">租客應收總額：{{ trunc2(tenantPayableTotal).toFixed(2) }}</p>
+        <p v-if="calcMode === 3">房東自付總額：{{ trunc2(landlordPayableTotal).toFixed(2) }}</p>
         <div v-if="calcMode === 3" class="mt-2 space-y-1">
           <p>公電總額 {{ result.publicElectricityAmount.toFixed(2) }} = 應繳總額 {{ aggregatedAmount.toFixed(2) }} - 私電總額 {{ result.privateElectricityAmount.toFixed(2) }}</p>
           <p>公電單價 {{ publicUnitPriceText }} = 公電總額 {{ result.publicElectricityAmount.toFixed(2) }} / (本期日數 {{ billingDays }} × 居住總人數 {{ totalOccupantsText }})</p>
@@ -89,10 +92,11 @@
 
       <div v-if="result && allocations.length" class="overflow-x-auto mt-3">
         <table class="table table-zebra">
-          <thead><tr><th>租客/合約</th><th>私電明細</th><th>公電明細</th><th>合計</th></tr></thead>
+          <thead><tr><th>分攤對象</th><th>租客/合約</th><th>私電明細</th><th>公電明細</th><th>合計</th></tr></thead>
           <tbody>
             <tr v-for="(a, idx) in allocations" :key="`detail-${a.expenseBillId}-${a.contractId}-${idx}`">
-              <td>{{ a.tenantName || '-' }} / {{ a.contractNo }}</td>
+              <td>{{ a.targetName }}</td>
+              <td>{{ partyText(a) }}</td>
               <td>{{ a.calcDetail?.privateAmountText || '-' }}</td>
               <td>{{ a.calcDetail?.publicAmountText || '-' }}</td>
               <td>{{ a.calcDetail?.totalText || '-' }}</td>
@@ -136,6 +140,12 @@ const billingDays = computed(() => {
 const occupancyWeightTotal = computed(() => allocations.value.reduce((s:number, x:any) => s + Number(x.occupancyWeight || 0), 0))
 const totalOccupants = computed(() => billingDays.value === 0 ? 0 : occupancyWeightTotal.value / billingDays.value)
 const totalOccupantsText = computed(() => round2(totalOccupants.value).toFixed(2))
+const landlordPayableTotal = computed(() => allocations.value
+  .filter((x:any) => Number(x.targetType) === 2)
+  .reduce((s:number, x:any) => s + Number(x.calcDetail?.payableAmount || 0), 0))
+const tenantPayableTotal = computed(() => allocations.value
+  .filter((x:any) => Number(x.targetType) === 1)
+  .reduce((s:number, x:any) => s + Number(x.calcDetail?.payableAmount || 0), 0))
 const publicUnitPriceText = computed(() => {
   if (!result.value || calcMode.value !== 3 || occupancyWeightTotal.value === 0) return '0.00'
   return round2(Number(result.value.publicElectricityAmount || 0) / occupancyWeightTotal.value).toFixed(2)
@@ -145,6 +155,7 @@ const meterText = (row:any) => {
   if (row.meterStart == null || row.meterEnd == null) return '-'
   return `${round2(Number(row.meterStart))} → ${round2(Number(row.meterEnd))}`
 }
+const partyText = (row:any) => Number(row.targetType) === 2 ? '房東自付' : `${row.tenantName || '-'} / ${row.contractNo || '-'}`
 
 const loadExpenseBills = async () => {
   const { data } = await api.get('/expenses', {
@@ -250,7 +261,8 @@ const calculate = async () => {
       x.calcDetail = {
         privateAmountText: `${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
         publicAmountText: `${Number(x.occupancyDays || 0)}日 × ${Number(x.occupantCount || 0)}人 × ${averageDailyPrice}元 = ${publicPart}元`,
-        totalText: `${privateAmounts[idx]} + ${publicPart} = ${payable}元`
+        totalText: `${privateAmounts[idx]} + ${publicPart} = ${payable}元`,
+        payableAmount: payable
       }
       return payable
     })
@@ -280,7 +292,8 @@ const calculate = async () => {
       x.calcDetail = {
         privateAmountText: `${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
         publicAmountText: '公電費：0元',
-        totalText: `${privateAmounts[idx]} = ${payable}元`
+        totalText: `${privateAmounts[idx]} = ${payable}元`,
+        payableAmount: payable
       }
     })
     return
@@ -293,7 +306,7 @@ const saveBill = async () => {
   error.value = validate()
   if (error.value) return
   try {
-    const primaryContractId = Number(allocations.value[0]?.contractId || 0)
+    const primaryContractId = allocations.value.find((x:any) => Number(x.targetType) === 1 && x.contractId)?.contractId ?? null
     const { data } = await api.post('/electricity/bills', {
       contractId: primaryContractId,
       ruleType: calcMode.value,
@@ -303,6 +316,7 @@ const saveBill = async () => {
       totalUnits: aggregatedUnits.value,
       unitPrice: aggregatedUnits.value === 0 ? 0 : aggregatedAmount.value / aggregatedUnits.value,
       allocations: allocations.value.map((x: any) => ({
+        targetType: x.targetType,
         contractId: x.contractId,
         propertyRoomId: x.propertyRoomId,
         tenantId: x.tenantId,
@@ -323,7 +337,7 @@ const saveBill = async () => {
       await loadExpenseBills()
       selectedExpenseBillIds.value = []
       resetPreview()
-      notice.value = `帳單儲存成功，並已依合約轉入應收（帳單#${billId}）`
+      notice.value = `帳單儲存成功，租客應收 ${trunc2(tenantPayableTotal.value)} 元，房東自付 ${trunc2(landlordPayableTotal.value)} 元（帳單#${billId}）`
     } else {
       notice.value = '帳單儲存成功'
     }

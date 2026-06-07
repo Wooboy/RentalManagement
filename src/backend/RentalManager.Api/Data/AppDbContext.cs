@@ -74,7 +74,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasOne(x => x.Contract)
             .WithMany()
             .HasForeignKey(x => x.ContractId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<ElectricityAllocation>()
             .HasOne(x => x.ElectricityBill)
@@ -86,7 +86,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasOne(x => x.Contract)
             .WithMany()
             .HasForeignKey(x => x.ContractId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<ElectricityAllocation>()
             .HasOne(x => x.PropertyRoom)

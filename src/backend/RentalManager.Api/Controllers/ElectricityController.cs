@@ -15,11 +15,15 @@ public class ElectricityController(AppDbContext db) : ControllerBase
     private sealed class PreviewAllocationRow
     {
         public required ExpenseRecord ExpenseBill { get; init; }
-        public required Contract Contract { get; init; }
         public required PropertyRoom Room { get; init; }
+        public ElectricityAllocationTargetType TargetType { get; init; }
+        public Contract? Contract { get; init; }
         public decimal TenantUnits { get; set; }
         public decimal? MeterStart { get; set; }
         public decimal? MeterEnd { get; set; }
+        public int OccupantCount { get; set; }
+        public DateTime OccupancyStartUtc { get; set; }
+        public DateTime OccupancyEndUtc { get; set; }
     }
 
     [HttpPost("calculate")]
@@ -146,9 +150,13 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                         ExpenseBill = bill,
                         Contract = contractLink.Contract,
                         Room = contractLink.PropertyRoom!,
+                        TargetType = ElectricityAllocationTargetType.Tenant,
                         TenantUnits = 0,
                         MeterStart = null,
-                        MeterEnd = null
+                        MeterEnd = null,
+                        OccupantCount = contractLink.Contract.OccupantCount,
+                        OccupancyStartUtc = MaxDate(contractLink.Contract.StartDateUtc, bill.BillingStartUtc),
+                        OccupancyEndUtc = MinDate(contractLink.Contract.EndDateUtc, bill.BillingEndUtc)
                     });
                 }
 
@@ -168,11 +176,40 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                         x.Contract.EndDateUtc.Date >= startReading.ReadingDateUtc.Date);
                     if (owner is null)
                     {
-                        warnings.Add($"帳單#{bill.Id} 房間 {billRoom.Name} 在 {startReading.ReadingDateUtc:yyyy-MM-dd} 的用電區段找不到對應合約");
+                        var landlordRow = rows.FirstOrDefault(x =>
+                            x.ExpenseBill.Id == bill.Id &&
+                            x.TargetType == ElectricityAllocationTargetType.Landlord &&
+                            x.Room.Id == roomId);
+                        if (landlordRow is null)
+                        {
+                            landlordRow = new PreviewAllocationRow
+                            {
+                                ExpenseBill = bill,
+                                Contract = null,
+                                Room = billRoom,
+                                TargetType = ElectricityAllocationTargetType.Landlord,
+                                TenantUnits = 0,
+                                MeterStart = null,
+                                MeterEnd = null,
+                                OccupantCount = 0,
+                                OccupancyStartUtc = startReading.ReadingDateUtc.Date,
+                                OccupancyEndUtc = endReading.ReadingDateUtc.Date.AddDays(-1)
+                            };
+                            rows.Add(landlordRow);
+                        }
+                        else
+                        {
+                            landlordRow.OccupancyStartUtc = MinDate(landlordRow.OccupancyStartUtc, startReading.ReadingDateUtc);
+                            landlordRow.OccupancyEndUtc = MaxDate(landlordRow.OccupancyEndUtc, endReading.ReadingDateUtc.Date.AddDays(-1));
+                        }
+
+                        landlordRow.TenantUnits += units;
+                        landlordRow.MeterStart ??= startReading.ReadingValue;
+                        landlordRow.MeterEnd = endReading.ReadingValue;
                         continue;
                     }
 
-                    var row = rows.First(x => x.ExpenseBill.Id == bill.Id && x.Contract.Id == owner.Contract.Id && x.Room.Id == roomId);
+                    var row = rows.First(x => x.ExpenseBill.Id == bill.Id && x.TargetType == ElectricityAllocationTargetType.Tenant && x.Contract!.Id == owner.Contract.Id && x.Room.Id == roomId);
                     row.TenantUnits += units;
                     row.MeterStart ??= startReading.ReadingValue;
                     row.MeterEnd = endReading.ReadingValue;
@@ -183,10 +220,12 @@ public class ElectricityController(AppDbContext db) : ControllerBase
         var allocationRows = rows
             .Select(x =>
             {
-                var occupancyStart = MaxDate(x.Contract.StartDateUtc, x.ExpenseBill.BillingStartUtc);
-                var occupancyEnd = MinDate(x.Contract.EndDateUtc, x.ExpenseBill.BillingEndUtc);
+                var occupancyStart = x.OccupancyStartUtc;
+                var occupancyEnd = x.OccupancyEndUtc;
                 return new
                 {
+                    TargetType = (int)x.TargetType,
+                    TargetName = x.TargetType == ElectricityAllocationTargetType.Landlord ? "房東自付" : "租客",
                     ExpenseBillId = x.ExpenseBill.Id,
                     ExpenseBillAmount = x.ExpenseBill.Amount,
                     ExpenseBillUnits = x.ExpenseBill.UsageUnits ?? 0,
@@ -194,11 +233,11 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                     PropertyUnitName = x.ExpenseBill.PropertyUnit != null ? x.ExpenseBill.PropertyUnit.Name : null,
                     PropertyRoomId = x.Room.Id,
                     PropertyRoomName = x.Room.Name,
-                    ContractId = x.Contract.Id,
-                    x.Contract.ContractNo,
-                    TenantId = x.Contract.TenantId,
-                    TenantName = x.Contract.Tenant != null ? x.Contract.Tenant.Name : null,
-                    OccupantCount = x.Contract.OccupantCount,
+                    ContractId = x.Contract?.Id,
+                    ContractNo = x.Contract?.ContractNo,
+                    TenantId = x.Contract?.TenantId,
+                    TenantName = x.Contract?.Tenant != null ? x.Contract.Tenant.Name : null,
+                    OccupantCount = x.OccupantCount,
                     OccupancyStartUtc = occupancyStart,
                     OccupancyEndUtc = occupancyEnd,
                     OccupancyDays = CalculateInclusiveDays(occupancyStart, occupancyEnd),
@@ -235,12 +274,12 @@ public class ElectricityController(AppDbContext db) : ControllerBase
     [HttpPost("bills")]
     public async Task<ActionResult<object>> SaveBill(ElectricityBillSaveRequest request)
     {
-        if (!await db.Contracts.AnyAsync(x => x.Id == request.ContractId)) return BadRequest("合約不存在");
         if (request.BillingEndUtc < request.BillingStartUtc) return BadRequest("帳期結束不可早於開始");
         if (request.Allocations is null || request.Allocations.Count == 0) return BadRequest("無分攤資料");
 
-        var contractIds = request.Allocations.Select(x => x.ContractId).Distinct().ToList();
+        var contractIds = request.Allocations.Where(x => x.ContractId.HasValue).Select(x => x.ContractId!.Value).Distinct().ToList();
         var roomIds = request.Allocations.Select(x => x.PropertyRoomId).Distinct().ToList();
+        if (request.ContractId.HasValue && !await db.Contracts.AnyAsync(x => x.Id == request.ContractId.Value)) return BadRequest("主合約不存在");
         if (await db.Contracts.CountAsync(x => contractIds.Contains(x.Id)) != contractIds.Count) return BadRequest("部分分攤合約不存在");
         if (await db.PropertyRooms.CountAsync(x => roomIds.Contains(x.Id)) != roomIds.Count) return BadRequest("部分分攤房間不存在");
 
@@ -277,6 +316,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
             return new ElectricityAllocation
             {
                 ElectricityBillId = bill.Id,
+                TargetType = (ElectricityAllocationTargetType)x.TargetType,
                 ContractId = x.ContractId,
                 PropertyRoomId = x.PropertyRoomId,
                 TenantId = x.TenantId,
@@ -311,7 +351,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
             {
                 x.Id,
                 x.ContractId,
-                ContractNo = x.Contract!.ContractNo,
+                ContractNo = x.Contract != null ? x.Contract.ContractNo : null,
                 x.BillingStartUtc,
                 x.BillingEndUtc,
                 x.TotalAmount,
@@ -341,6 +381,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
             .Select(x => new
             {
                 x.Id,
+                x.TargetType,
                 x.ContractId,
                 ContractNo = x.Contract != null ? x.Contract.ContractNo : null,
                 x.PropertyRoomId,
@@ -387,12 +428,13 @@ public class ElectricityController(AppDbContext db) : ControllerBase
             .Where(x => x.ElectricityBillId == billId)
             .ToListAsync();
         if (allocations.Count == 0) return BadRequest("無分攤資料");
+        var tenantAllocations = allocations.Where(x => x.TargetType == ElectricityAllocationTargetType.Tenant && x.ContractId.HasValue).ToList();
 
         var created = 0;
         var useMerged = string.Equals(mode, "merged", StringComparison.OrdinalIgnoreCase);
         if (useMerged)
         {
-            var distinctContractIds = allocations.Select(x => x.ContractId).Distinct().ToList();
+            var distinctContractIds = tenantAllocations.Select(x => x.ContractId!.Value).Distinct().ToList();
             if (distinctContractIds.Count != 1) return BadRequest("跨多份合約的帳單不可使用合併轉入");
             var charge = new ChargeRecord
             {
@@ -411,7 +453,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
         }
         else
         {
-            foreach (var group in allocations.GroupBy(x => x.ContractId))
+            foreach (var group in tenantAllocations.GroupBy(x => x.ContractId!.Value))
             {
                 var charge = new ChargeRecord
                 {
