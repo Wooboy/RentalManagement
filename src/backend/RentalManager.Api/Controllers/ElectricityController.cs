@@ -401,7 +401,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                 BillingStartUtc = bill.BillingStartUtc,
                 BillingEndUtc = bill.BillingEndUtc,
                 UsageUnits = bill.TotalUnits,
-                Amount = bill.PayableTotalAmount,
+                Amount = TruncateToInteger(bill.PayableTotalAmount),
                 Notes = $"電費帳單#{billId} 合併轉入",
                 IsPaid = false,
                 CreatedAtUtc = DateTime.UtcNow
@@ -420,7 +420,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                     BillingStartUtc = bill.BillingStartUtc,
                     BillingEndUtc = bill.BillingEndUtc,
                     UsageUnits = group.Sum(x => x.TenantUnits),
-                    Amount = group.Sum(x => x.PayableAmount),
+                    Amount = TruncateToInteger(group.Sum(x => x.PayableAmount)),
                     Notes = $"電費帳單#{billId} 分攤轉入",
                     IsPaid = false,
                     CreatedAtUtc = DateTime.UtcNow
@@ -508,4 +508,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
 
     private static int CalculateInclusiveDays(DateTime start, DateTime end)
         => end.Date < start.Date ? 0 : (end.Date - start.Date).Days + 1;
+
+    private static decimal TruncateToInteger(decimal amount)
+        => Math.Floor(amount);
 }
