@@ -129,17 +129,14 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                     continue;
                 }
 
-                var roomReadings = readings
-                    .Where(x => x.PropertyRoomId == roomId &&
-                                x.ReadingDateUtc >= bill.BillingStartUtc.Date &&
-                                x.ReadingDateUtc <= bill.BillingEndUtc.Date)
-                    .OrderBy(x => x.ReadingDateUtc)
-                    .ThenBy(x => x.Id)
-                    .ToList();
+                var roomReadings = BuildBillReadingSeries(
+                    readings.Where(x => x.PropertyRoomId == roomId).ToList(),
+                    bill.BillingStartUtc,
+                    bill.BillingEndUtc);
 
                 if (roomReadings.Count < 2)
                 {
-                    warnings.Add($"帳單#{bill.Id} 房間 {billRoom.Name} 抄表資料不足，至少需要帳期內兩筆讀數");
+                    warnings.Add($"帳單#{bill.Id} 房間 {billRoom.Name} 抄表資料不足，至少需要帳期起訖邊界各一筆讀數");
                 }
 
                 foreach (var contractLink in roomContracts)
@@ -231,7 +228,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                 UsageUnits = x.UsageUnits ?? 0
             }),
             allocations = allocationRows,
-            warnings
+            warnings = warnings.Distinct().ToList()
         });
     }
 
@@ -473,6 +470,34 @@ public class ElectricityController(AppDbContext db) : ControllerBase
         }
 
         return explicitRooms;
+    }
+
+    private static List<ElectricityMeterReading> BuildBillReadingSeries(List<ElectricityMeterReading> roomReadings, DateTime billingStartUtc, DateTime billingEndUtc)
+    {
+        var ordered = roomReadings
+            .OrderBy(x => x.ReadingDateUtc)
+            .ThenBy(x => x.Id)
+            .ToList();
+
+        var startBoundary = ordered
+            .LastOrDefault(x => x.ReadingDateUtc.Date <= billingStartUtc.Date);
+        var endBoundary = ordered
+            .FirstOrDefault(x => x.ReadingDateUtc.Date > billingEndUtc.Date);
+
+        if (startBoundary is null || endBoundary is null)
+        {
+            return [];
+        }
+
+        return ordered
+            .Where(x =>
+                x.Id == startBoundary.Id ||
+                x.Id == endBoundary.Id ||
+                (x.ReadingDateUtc.Date > billingStartUtc.Date && x.ReadingDateUtc.Date <= billingEndUtc.Date))
+            .DistinctBy(x => x.Id)
+            .OrderBy(x => x.ReadingDateUtc)
+            .ThenBy(x => x.Id)
+            .ToList();
     }
 
     private static DateTime MaxDate(DateTime left, DateTime right)
