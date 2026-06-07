@@ -82,6 +82,10 @@
         <p>私電總額：{{ result.privateElectricityAmount.toFixed(2) }}</p>
         <p>公電總額：{{ result.publicElectricityAmount.toFixed(2) }}</p>
         <p>應繳總額：{{ result.payableAmount.toFixed(2) }}</p>
+        <div v-if="calcMode === 3" class="mt-2 space-y-1">
+          <p>公電總額 {{ result.publicElectricityAmount.toFixed(2) }} = 應繳總額 {{ aggregatedAmount.toFixed(2) }} - 私電總額 {{ result.privateElectricityAmount.toFixed(2) }}</p>
+          <p>公電單價 {{ publicUnitPriceText }} = 公電總額 {{ result.publicElectricityAmount.toFixed(2) }} / (本期日數 {{ billingDays }} × 居住總人數 {{ totalOccupantsText }})</p>
+        </div>
       </div>
 
       <div v-if="result && allocations.length" class="overflow-x-auto mt-3">
@@ -124,6 +128,19 @@ const aggregatedAmount = computed(() => selectedBills.value.reduce((s:number,b:a
 const aggregatedUnits = computed(() => selectedBills.value.reduce((s:number,b:any)=>s + Number(b.usageUnits || 0), 0))
 const billingStart = computed(() => selectedBills.value[0]?.billingStartUtc?.slice(0,10) || '')
 const billingEnd = computed(() => selectedBills.value[0]?.billingEndUtc?.slice(0,10) || '')
+const billingDays = computed(() => {
+  if (!billingStart.value || !billingEnd.value) return 0
+  const start = new Date(`${billingStart.value}T00:00:00Z`)
+  const end = new Date(`${billingEnd.value}T00:00:00Z`)
+  return end < start ? 0 : Math.floor((end.getTime() - start.getTime()) / 86400000) + 1
+})
+const occupancyWeightTotal = computed(() => allocations.value.reduce((s:number, x:any) => s + Number(x.occupancyWeight || 0), 0))
+const totalOccupants = computed(() => billingDays.value === 0 ? 0 : occupancyWeightTotal.value / billingDays.value)
+const totalOccupantsText = computed(() => round2(totalOccupants.value).toFixed(2))
+const publicUnitPriceText = computed(() => {
+  if (!result.value || calcMode.value !== 3 || occupancyWeightTotal.value === 0) return '0.00'
+  return round2(Number(result.value.publicElectricityAmount || 0) / occupancyWeightTotal.value).toFixed(2)
+})
 
 const meterText = (row:any) => {
   if (row.meterStart == null || row.meterEnd == null) return '-'
