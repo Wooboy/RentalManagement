@@ -80,9 +80,11 @@ public class ElectricityController(AppDbContext db) : ControllerBase
             .ThenBy(x => x.Id)
             .ToListAsync();
         if (expenseBills.Count != expenseBillIds.Count) return BadRequest("部分電費帳單不存在");
-        if (expenseBills.Any(x => x.PropertyRoomId is null or <= 0)) return BadRequest("電費帳單必須綁定房間才能分帳");
 
-        var roomIds = expenseBills.Select(x => x.PropertyRoomId!.Value).Distinct().ToList();
+        var billRoomsMap = await ResolveExpenseBillRoomsAsync(expenseBills);
+        var roomIds = billRoomsMap.Values.SelectMany(x => x).Select(x => x.Id).Distinct().ToList();
+        if (roomIds.Count == 0) return BadRequest("找不到可分帳的房間");
+
         var minDate = expenseBills.Min(x => x.BillingStartUtc).Date;
         var maxDate = expenseBills.Max(x => x.BillingEndUtc).Date;
 
@@ -105,72 +107,79 @@ public class ElectricityController(AppDbContext db) : ControllerBase
 
         foreach (var bill in expenseBills)
         {
-            var roomId = bill.PropertyRoomId!.Value;
-            var roomContracts = contracts
-                .Where(x => x.PropertyRoomId == roomId && x.Contract != null && HasOverlap(x.Contract.StartDateUtc, x.Contract.EndDateUtc, bill.BillingStartUtc, bill.BillingEndUtc))
-                .Select(x => new { x.PropertyRoom, Contract = x.Contract! })
-                .OrderBy(x => x.Contract.StartDateUtc)
-                .ThenBy(x => x.Contract.Id)
-                .ToList();
-
-            if (roomContracts.Count == 0)
+            if (!billRoomsMap.TryGetValue(bill.Id, out var billRooms) || billRooms.Count == 0)
             {
-                warnings.Add($"帳單#{bill.Id} 找不到帳期內有效合約");
+                warnings.Add($"帳單#{bill.Id} 找不到可分帳房間");
                 continue;
             }
 
-            var roomReadings = readings
-                .Where(x => x.PropertyRoomId == roomId &&
-                            x.ReadingDateUtc >= bill.BillingStartUtc.Date &&
-                            x.ReadingDateUtc <= bill.BillingEndUtc.Date)
-                .OrderBy(x => x.ReadingDateUtc)
-                .ThenBy(x => x.Id)
-                .ToList();
-
-            if (roomReadings.Count < 2)
+            foreach (var billRoom in billRooms)
             {
-                warnings.Add($"帳單#{bill.Id} 抄表資料不足，至少需要帳期內兩筆讀數");
-            }
+                var roomId = billRoom.Id;
+                var roomContracts = contracts
+                    .Where(x => x.PropertyRoomId == roomId && x.Contract != null && HasOverlap(x.Contract.StartDateUtc, x.Contract.EndDateUtc, bill.BillingStartUtc, bill.BillingEndUtc))
+                    .Select(x => new { x.PropertyRoom, Contract = x.Contract! })
+                    .OrderBy(x => x.Contract.StartDateUtc)
+                    .ThenBy(x => x.Contract.Id)
+                    .ToList();
 
-            foreach (var contractLink in roomContracts)
-            {
-                var overlapStart = MaxDate(contractLink.Contract.StartDateUtc, bill.BillingStartUtc);
-                var overlapEnd = MinDate(contractLink.Contract.EndDateUtc, bill.BillingEndUtc);
-                rows.Add(new PreviewAllocationRow
+                if (roomContracts.Count == 0)
                 {
-                    ExpenseBill = bill,
-                    Contract = contractLink.Contract,
-                    Room = contractLink.PropertyRoom!,
-                    TenantUnits = 0,
-                    MeterStart = null,
-                    MeterEnd = null
-                });
-            }
-
-            for (var index = 0; index < roomReadings.Count - 1; index++)
-            {
-                var startReading = roomReadings[index];
-                var endReading = roomReadings[index + 1];
-                var units = endReading.ReadingValue - startReading.ReadingValue;
-                if (units < 0)
-                {
-                    warnings.Add($"帳單#{bill.Id} 在 {startReading.ReadingDateUtc:yyyy-MM-dd} 到 {endReading.ReadingDateUtc:yyyy-MM-dd} 出現倒退讀數");
+                    warnings.Add($"帳單#{bill.Id} 房間 {billRoom.Name} 找不到帳期內有效合約");
                     continue;
                 }
 
-                var owner = roomContracts.FirstOrDefault(x =>
-                    x.Contract.StartDateUtc.Date <= startReading.ReadingDateUtc.Date &&
-                    x.Contract.EndDateUtc.Date >= startReading.ReadingDateUtc.Date);
-                if (owner is null)
+                var roomReadings = readings
+                    .Where(x => x.PropertyRoomId == roomId &&
+                                x.ReadingDateUtc >= bill.BillingStartUtc.Date &&
+                                x.ReadingDateUtc <= bill.BillingEndUtc.Date)
+                    .OrderBy(x => x.ReadingDateUtc)
+                    .ThenBy(x => x.Id)
+                    .ToList();
+
+                if (roomReadings.Count < 2)
                 {
-                    warnings.Add($"帳單#{bill.Id} 在 {startReading.ReadingDateUtc:yyyy-MM-dd} 的用電區段找不到對應合約");
-                    continue;
+                    warnings.Add($"帳單#{bill.Id} 房間 {billRoom.Name} 抄表資料不足，至少需要帳期內兩筆讀數");
                 }
 
-                var row = rows.First(x => x.ExpenseBill.Id == bill.Id && x.Contract.Id == owner.Contract.Id && x.Room.Id == roomId);
-                row.TenantUnits += units;
-                row.MeterStart ??= startReading.ReadingValue;
-                row.MeterEnd = endReading.ReadingValue;
+                foreach (var contractLink in roomContracts)
+                {
+                    rows.Add(new PreviewAllocationRow
+                    {
+                        ExpenseBill = bill,
+                        Contract = contractLink.Contract,
+                        Room = contractLink.PropertyRoom!,
+                        TenantUnits = 0,
+                        MeterStart = null,
+                        MeterEnd = null
+                    });
+                }
+
+                for (var index = 0; index < roomReadings.Count - 1; index++)
+                {
+                    var startReading = roomReadings[index];
+                    var endReading = roomReadings[index + 1];
+                    var units = endReading.ReadingValue - startReading.ReadingValue;
+                    if (units < 0)
+                    {
+                        warnings.Add($"帳單#{bill.Id} 房間 {billRoom.Name} 在 {startReading.ReadingDateUtc:yyyy-MM-dd} 到 {endReading.ReadingDateUtc:yyyy-MM-dd} 出現倒退讀數");
+                        continue;
+                    }
+
+                    var owner = roomContracts.FirstOrDefault(x =>
+                        x.Contract.StartDateUtc.Date <= startReading.ReadingDateUtc.Date &&
+                        x.Contract.EndDateUtc.Date >= startReading.ReadingDateUtc.Date);
+                    if (owner is null)
+                    {
+                        warnings.Add($"帳單#{bill.Id} 房間 {billRoom.Name} 在 {startReading.ReadingDateUtc:yyyy-MM-dd} 的用電區段找不到對應合約");
+                        continue;
+                    }
+
+                    var row = rows.First(x => x.ExpenseBill.Id == bill.Id && x.Contract.Id == owner.Contract.Id && x.Room.Id == roomId);
+                    row.TenantUnits += units;
+                    row.MeterStart ??= startReading.ReadingValue;
+                    row.MeterEnd = endReading.ReadingValue;
+                }
             }
         }
 
@@ -433,6 +442,38 @@ public class ElectricityController(AppDbContext db) : ControllerBase
 
     private static bool HasOverlap(DateTime startA, DateTime endA, DateTime startB, DateTime endB)
         => startA.Date <= endB.Date && startB.Date <= endA.Date;
+
+    private async Task<Dictionary<int, List<PropertyRoom>>> ResolveExpenseBillRoomsAsync(List<ExpenseRecord> expenseBills)
+    {
+        var explicitRooms = expenseBills
+            .Where(x => x.PropertyRoomId.HasValue && x.PropertyRoom is not null)
+            .ToDictionary(x => x.Id, x => new List<PropertyRoom> { x.PropertyRoom! });
+
+        var unitIds = expenseBills
+            .Where(x => !x.PropertyRoomId.HasValue)
+            .Select(x => x.PropertyUnitId)
+            .Distinct()
+            .ToList();
+
+        var roomsByUnit = unitIds.Count == 0
+            ? new Dictionary<int, List<PropertyRoom>>()
+            : await db.PropertyRooms
+                .Where(x => unitIds.Contains(x.PropertyUnitId))
+                .OrderBy(x => x.PropertyUnitId)
+                .ThenBy(x => x.Name)
+                .ThenBy(x => x.Id)
+                .GroupBy(x => x.PropertyUnitId)
+                .ToDictionaryAsync(g => g.Key, g => g.ToList());
+
+        foreach (var bill in expenseBills.Where(x => !explicitRooms.ContainsKey(x.Id)))
+        {
+            explicitRooms[bill.Id] = roomsByUnit.TryGetValue(bill.PropertyUnitId, out var rooms)
+                ? rooms
+                : [];
+        }
+
+        return explicitRooms;
+    }
 
     private static DateTime MaxDate(DateTime left, DateTime right)
         => left.Date >= right.Date ? left.Date : right.Date;
