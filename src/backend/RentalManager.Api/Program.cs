@@ -11,6 +11,7 @@ builder.Services.AddControllers();
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddScoped<DbSeedService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "super-secret-key-change-me";
 var issuer = builder.Configuration["Jwt:Issuer"] ?? "RentalManager";
@@ -41,7 +42,17 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var seedService = scope.ServiceProvider.GetRequiredService<DbSeedService>();
     db.Database.Migrate();
+
+    var exportSeedPath = args.SkipWhile(x => x != "--export-seed").Skip(1).FirstOrDefault();
+    if (args.Contains("--export-seed"))
+    {
+        await seedService.ExportAsync(exportSeedPath);
+        return;
+    }
+
+    await seedService.ApplyTemplateIfEmptyAsync();
 }
 
 app.UseCors("frontend");

@@ -13,6 +13,9 @@
 - Migration：
   - 新增 migration：`dotnet ef migrations add <Name>`
   - 套用 migration：`dotnet ef database update`
+- 種子資料：
+  - 匯出目前資料庫成範本：`dotnet run -- --export-seed Seed/seed-template.json`
+  - 啟動時若資料庫為空，會自動套用 `src/backend/RentalManager.Api/Seed/seed-template.json`
 - 預設管理者：
   - 帳號 `admin`
   - 密碼 `admin123`
