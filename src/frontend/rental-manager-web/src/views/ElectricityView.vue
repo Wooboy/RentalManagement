@@ -15,11 +15,11 @@
       <div class="overflow-x-auto mb-3">
         <p class="text-sm mb-2">2. 選擇電費帳單（{{ calcMode === 3 ? '可多選' : '僅可單選' }}）</p>
         <table class="table table-zebra">
-          <thead><tr><th></th><th>帳單ID</th><th>帳期</th><th>金額</th><th>度數</th><th>房源/房間</th></tr></thead>
+          <thead><tr><th></th><th>發生日期</th><th>帳期</th><th>金額</th><th>度數</th><th>房源/房間</th></tr></thead>
           <tbody>
             <tr v-for="b in electricityExpenseBills" :key="b.id">
               <td><input type="checkbox" class="checkbox checkbox-sm" :checked="selectedExpenseBillIds.includes(b.id)" @change="toggleBill(b)" /></td>
-              <td>#{{ b.id }}</td>
+              <td>{{ b.occurredAtUtc?.slice(0,10) || '-' }}</td>
               <td>{{ b.billingStartUtc?.slice(0,10) }} ~ {{ b.billingEndUtc?.slice(0,10) }}</td>
               <td>{{ b.amount }}</td>
               <td>{{ b.usageUnits ?? '-' }}</td>
@@ -64,6 +64,11 @@
         </table>
       </div>
 
+      <div v-if="isPreviewLoading" class="mt-3 text-sm text-base-content/70">正在帶入合約與抄表資料...</div>
+      <div v-else-if="selectedExpenseBillIds.length && !allocations.length && !previewWarnings.length" class="mt-3 alert alert-warning text-sm">
+        <span>選取的帳單目前沒有帶入可計算的合約，請檢查合約房間、帳期，以及是否已有對應抄表資料。</span>
+      </div>
+
       <div v-if="previewWarnings.length" class="mt-3 alert alert-warning text-sm whitespace-pre-line">
         <div>
           <div v-for="(warning, idx) in previewWarnings" :key="idx">{{ warning }}</div>
@@ -97,7 +102,7 @@
             <tr v-for="(a, idx) in allocations" :key="`detail-${a.expenseBillId}-${a.contractId}-${idx}`">
               <td>{{ a.targetName }}</td>
               <td>{{ partyText(a) }}</td>
-              <td>{{ a.calcDetail?.privateAmountText || '-' }}</td>
+              <td class="whitespace-pre-line">{{ a.calcDetail?.privateAmountText || '-' }}</td>
               <td>{{ a.calcDetail?.publicAmountText || '-' }}</td>
               <td>{{ a.calcDetail?.totalText || '-' }}</td>
             </tr>
@@ -121,6 +126,8 @@ const error = ref('')
 const notice = ref('')
 const result = ref<any>(null)
 const manualUnitPrice = ref<number>(0)
+const isPreviewLoading = ref(false)
+let previewRequestSeq = 0
 const round2 = (n:number) => Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100
 const trunc2 = (n:number) => Math.floor(Number(n || 0) * 100) / 100
 const trunc0 = (n:number) => Math.floor(Number(n || 0))
@@ -156,6 +163,11 @@ const meterText = (row:any) => {
   return `${round2(Number(row.meterStart))} → ${round2(Number(row.meterEnd))}`
 }
 const partyText = (row:any) => Number(row.targetType) === 2 ? '房東自付' : `${row.tenantName || '-'} / ${row.contractNo || '-'}`
+const formatDate = (value:any) => value ? String(value).slice(0, 10) : '-'
+const buildPrivateUsageLine = (row:any) => {
+  if (row.meterStart == null || row.meterEnd == null) return `${round2(Number(row.tenantUnits || 0))}度`
+  return `(${formatDate(row.meterStartDateUtc)}) ${round2(Number(row.meterStart))} - (${formatDate(row.meterEndDateUtc)}) ${round2(Number(row.meterEnd))} = ${round2(Number(row.tenantUnits || 0))}度`
+}
 
 const loadExpenseBills = async () => {
   const { data } = await api.get('/expenses', {
@@ -183,15 +195,36 @@ const resetPreview = () => {
 }
 
 const loadPreview = async () => {
+  const requestSeq = ++previewRequestSeq
   resetPreview()
-  if (!selectedExpenseBillIds.value.length) return
-  const { data } = await api.post('/electricity/preview-from-expenses', { expenseBillIds: selectedExpenseBillIds.value })
-  previewWarnings.value = Array.isArray(data?.warnings) ? data.warnings : []
-  allocations.value = (Array.isArray(data?.allocations) ? data.allocations : []).map((x:any) => ({
-    ...x,
-    occupancyWeight: Number(x.occupancyDays || 0) * Number(x.occupantCount || 0),
-    calcDetail: null
-  }))
+  if (!selectedExpenseBillIds.value.length) {
+    isPreviewLoading.value = false
+    return
+  }
+  isPreviewLoading.value = true
+  try {
+    const { data } = await api.post('/electricity/preview-from-expenses', { expenseBillIds: [...selectedExpenseBillIds.value] })
+    if (requestSeq !== previewRequestSeq) return
+
+    previewWarnings.value = Array.isArray(data?.warnings) ? data.warnings : []
+    allocations.value = (Array.isArray(data?.allocations) ? data.allocations : []).map((x:any) => ({
+      ...x,
+      occupancyWeight: Number(x.occupancyDays || 0) * Number(x.occupantCount || 0),
+      calcDetail: null
+    }))
+
+    if (!allocations.value.length && previewWarnings.value.length) {
+      error.value = '選取帳單沒有帶入可計算的合約，請先確認警示內容。'
+    }
+  } catch (e:any) {
+    if (requestSeq !== previewRequestSeq) return
+    const message = e?.response?.data || e?.message || '帶入帳單資料失敗'
+    error.value = typeof message === 'string' ? message : JSON.stringify(message)
+  } finally {
+    if (requestSeq === previewRequestSeq) {
+      isPreviewLoading.value = false
+    }
+  }
 }
 
 const toggleBill = async (bill: any) => {
@@ -259,7 +292,7 @@ const calculate = async () => {
       const billUnits = Number(bill?.usageUnits || 0)
       const unitPrice = billUnits === 0 ? 0 : round2(billAmount / billUnits)
       x.calcDetail = {
-        privateAmountText: `${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
+        privateAmountText: `${buildPrivateUsageLine(x)}\n${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
         publicAmountText: `${Number(x.occupancyDays || 0)}日 × ${Number(x.occupantCount || 0)}人 × ${averageDailyPrice}元 = ${publicPart}元`,
         totalText: `${privateAmounts[idx]} + ${publicPart} = ${payable}元`,
         payableAmount: payable
@@ -290,7 +323,7 @@ const calculate = async () => {
     allocations.value.forEach((x:any, idx:number) => {
       const payable = trunc0(privateAmounts[idx])
       x.calcDetail = {
-        privateAmountText: `${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
+        privateAmountText: `${buildPrivateUsageLine(x)}\n${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
         publicAmountText: '公電費：0元',
         totalText: `${privateAmounts[idx]} = ${payable}元`,
         payableAmount: payable

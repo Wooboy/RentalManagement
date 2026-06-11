@@ -21,6 +21,8 @@ public class ElectricityController(AppDbContext db) : ControllerBase
         public decimal TenantUnits { get; set; }
         public decimal? MeterStart { get; set; }
         public decimal? MeterEnd { get; set; }
+        public DateTime? MeterStartDateUtc { get; set; }
+        public DateTime? MeterEndDateUtc { get; set; }
         public int OccupantCount { get; set; }
         public DateTime OccupancyStartUtc { get; set; }
         public DateTime OccupancyEndUtc { get; set; }
@@ -89,9 +91,6 @@ public class ElectricityController(AppDbContext db) : ControllerBase
         var roomIds = billRoomsMap.Values.SelectMany(x => x).Select(x => x.Id).Distinct().ToList();
         if (roomIds.Count == 0) return BadRequest("找不到可分帳的房間");
 
-        var minDate = expenseBills.Min(x => x.BillingStartUtc).Date;
-        var maxDate = expenseBills.Max(x => x.BillingEndUtc).Date;
-
         var contracts = await db.ContractRooms
             .Include(x => x.Contract)!.ThenInclude(x => x!.Tenant)
             .Include(x => x.PropertyRoom)
@@ -99,9 +98,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
             .ToListAsync();
 
         var readings = await db.ElectricityMeterReadings
-            .Where(x => roomIds.Contains(x.PropertyRoomId) &&
-                        x.ReadingDateUtc >= minDate.AddDays(-1) &&
-                        x.ReadingDateUtc <= maxDate.AddDays(1))
+            .Where(x => roomIds.Contains(x.PropertyRoomId))
             .OrderBy(x => x.ReadingDateUtc)
             .ThenBy(x => x.Id)
             .ToListAsync();
@@ -191,6 +188,8 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                                 TenantUnits = 0,
                                 MeterStart = null,
                                 MeterEnd = null,
+                                MeterStartDateUtc = null,
+                                MeterEndDateUtc = null,
                                 OccupantCount = 0,
                                 OccupancyStartUtc = startReading.ReadingDateUtc.Date,
                                 OccupancyEndUtc = endReading.ReadingDateUtc.Date.AddDays(-1)
@@ -205,14 +204,18 @@ public class ElectricityController(AppDbContext db) : ControllerBase
 
                         landlordRow.TenantUnits += units;
                         landlordRow.MeterStart ??= startReading.ReadingValue;
+                        landlordRow.MeterStartDateUtc ??= startReading.ReadingDateUtc;
                         landlordRow.MeterEnd = endReading.ReadingValue;
+                        landlordRow.MeterEndDateUtc = endReading.ReadingDateUtc;
                         continue;
                     }
 
                     var row = rows.First(x => x.ExpenseBill.Id == bill.Id && x.TargetType == ElectricityAllocationTargetType.Tenant && x.Contract!.Id == owner.Contract.Id && x.Room.Id == roomId);
                     row.TenantUnits += units;
                     row.MeterStart ??= startReading.ReadingValue;
+                    row.MeterStartDateUtc ??= startReading.ReadingDateUtc;
                     row.MeterEnd = endReading.ReadingValue;
+                    row.MeterEndDateUtc = endReading.ReadingDateUtc;
                 }
             }
         }
@@ -243,7 +246,9 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                     OccupancyDays = CalculateInclusiveDays(occupancyStart, occupancyEnd),
                     TenantUnits = x.TenantUnits,
                     x.MeterStart,
-                    x.MeterEnd
+                    x.MeterEnd,
+                    x.MeterStartDateUtc,
+                    x.MeterEndDateUtc
                 };
             })
             .OrderBy(x => x.ExpenseBillId)

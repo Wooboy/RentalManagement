@@ -13,11 +13,11 @@
       <nav class="p-3 flex-1 overflow-y-auto">
         <ul class="menu w-full gap-1">
           <li><RouterLink to="/" :class="linkClass('/')">儀表板</RouterLink></li>
-          <li><RouterLink to="/tenants" :class="linkClass('/tenants')">租客</RouterLink></li>
-          <li><RouterLink to="/properties" :class="linkClass('/properties')">房源</RouterLink></li>
-          <li><RouterLink to="/contracts" :class="linkClass('/contracts')">合約</RouterLink></li>
-          <li><RouterLink to="/charges" :class="linkClass('/charges')">應收</RouterLink></li>
-          <li><RouterLink to="/expenses" :class="linkClass('/expenses')">支出</RouterLink></li>
+          <li><RouterLink to="/tenants" :class="linkClass('/tenants')">租客名單</RouterLink></li>
+          <li><RouterLink to="/properties" :class="linkClass('/properties')">房源管理</RouterLink></li>
+          <li><RouterLink to="/contracts" :class="linkClass('/contracts')">合約管理</RouterLink></li>
+          <li><RouterLink to="/charges" :class="linkClass('/charges')">應收費用</RouterLink></li>
+          <li><RouterLink to="/expenses" :class="linkClass('/expenses')">支出費用</RouterLink></li>
           <li><RouterLink to="/electricity" :class="linkClass('/electricity')">電費試算</RouterLink></li>
           <li><RouterLink to="/electricity-meter-readings" :class="linkClass('/electricity-meter-readings')">電錶抄表</RouterLink></li>
           <li v-if="isAdmin"><RouterLink to="/admin-users" :class="linkClass('/admin-users')">帳號管理</RouterLink></li>

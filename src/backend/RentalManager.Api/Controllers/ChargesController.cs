@@ -43,7 +43,11 @@ public class ChargesController(AppDbContext db) : ControllerBase
             query = query.Where(x => x.IsPaid == isPaid.Value);
         }
 
-        return Ok(await query.OrderByDescending(x => x.Id).ToListAsync());
+        return Ok(await query
+            .OrderBy(x => x.ContractId)
+            .ThenBy(x => x.BillingStartUtc)
+            .ThenBy(x => x.Id)
+            .ToListAsync());
     }
 
     [HttpGet("{id:int}")]

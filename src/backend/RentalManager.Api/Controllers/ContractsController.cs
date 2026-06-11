@@ -23,7 +23,8 @@ public record ContractUpsertRequest(
 
 public record ContractBatchChargeCreateRequest(
     List<int> ContractIds,
-    DateTime? ReferenceDateUtc
+    DateTime? ReferenceDateUtc,
+    DateTime? TargetMonthUtc
 );
 
 [ApiController]
@@ -166,7 +167,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
         var contractIds = (request.ContractIds ?? []).Distinct().Where(x => x > 0).ToList();
         if (contractIds.Count == 0) return BadRequest("請至少選擇一份合約");
 
-        var referenceDate = (request.ReferenceDateUtc ?? DateTime.UtcNow).Date;
+        var targetMonth = (request.TargetMonthUtc ?? request.ReferenceDateUtc ?? DateTime.UtcNow).Date;
         var contracts = await db.Contracts
             .Where(x => contractIds.Contains(x.Id))
             .OrderBy(x => x.Id)
@@ -183,13 +184,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
 
         foreach (var contract in contracts)
         {
-            if (contract.Status != ContractStatus.Active)
-            {
-                skipped.Add(new { contract.Id, contract.ContractNo, reason = "合約不是生效中" });
-                continue;
-            }
-
-            var period = ResolveCurrentBillingPeriod(contract, referenceDate);
+            var period = ResolveBillingPeriodForMonth(contract, targetMonth);
 
             var duplicated = existingCharges.Any(x =>
                 x.ContractId == contract.Id &&
@@ -224,7 +219,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
 
         return Ok(new
         {
-            referenceDateUtc = referenceDate,
+            targetMonthUtc = new DateTime(targetMonth.Year, targetMonth.Month, 1),
             createdCount = created.Count,
             skippedCount = skipped.Count,
             created,
@@ -263,23 +258,17 @@ public class ContractsController(AppDbContext db) : ControllerBase
         return (true, null, propertyUnitId, propertyDisplay, propertyAddress);
     }
 
-    private static (DateTime start, DateTime end) ResolveCurrentBillingPeriod(Contract contract, DateTime referenceDate)
+    private static (DateTime start, DateTime end) ResolveBillingPeriodForMonth(Contract contract, DateTime targetMonth)
     {
         var startDate = contract.StartDateUtc.Date;
-        var endDate = contract.EndDateUtc.Date;
-        if (referenceDate < startDate) referenceDate = startDate;
-
+        var normalizedTargetMonth = new DateTime(targetMonth.Year, targetMonth.Month, 1);
         var intervalMonths = contract.PaymentIntervalMonths <= 0 ? 1 : contract.PaymentIntervalMonths;
-        var periodStart = startDate;
+        var monthDiff = ((normalizedTargetMonth.Year - startDate.Year) * 12) + normalizedTargetMonth.Month - startDate.Month;
 
-        while (periodStart.AddMonths(intervalMonths) <= referenceDate)
-        {
-            periodStart = periodStart.AddMonths(intervalMonths);
-        }
-
+        // Always use the selected month and keep the day anchored to the contract start day,
+        // falling back to the month's last day when needed.
+        var periodStart = startDate.AddMonths(monthDiff);
         var periodEnd = periodStart.AddMonths(intervalMonths).AddDays(-1);
-        if (periodEnd > endDate) periodEnd = endDate;
-
         return (periodStart, periodEnd);
     }
 }

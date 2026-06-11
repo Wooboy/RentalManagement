@@ -12,7 +12,6 @@
           <option value="all">全部</option>
           <option value="1">生效中</option>
           <option value="3">已終止</option>
-          <option value="2">已到期</option>
         </select>
       </label>
       <button class="btn" @click="load">查詢</button>
@@ -22,7 +21,7 @@
     <div class="flex gap-2 mb-3">
       <button class="btn btn-sm" @click="selectAll">全選</button>
       <button class="btn btn-sm" @click="clearSelection">清除全選</button>
-      <button class="btn btn-sm btn-secondary" :disabled="!selectedContractIds.length" @click="createPeriodCharges">建立本期應收款項目</button>
+      <button class="btn btn-sm btn-secondary" :disabled="!selectedContractIds.length" @click="openChargeMonthModal">建立本期應收款項目</button>
     </div>
 
     <div class="text-error text-sm mb-3">{{ error }}</div>
@@ -75,7 +74,7 @@
           <label class="form-control"><span class="label-text mb-1">合約起始</span><input v-model="form.startDateUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">合約終止</span><input v-model="form.endDateUtc" type="date" max="2099-12-31" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">合約狀態</span><select v-model.number="form.status" class="select select-bordered">
-            <option :value="1">狀態：生效中</option><option :value="2">狀態：已到期</option><option :value="3">狀態：已終止</option>
+            <option :value="1">狀態：生效中</option><option :value="3">狀態：已終止</option>
           </select></label>
           <label class="form-control md:col-span-3"><span class="label-text mb-1">備註</span><input v-model="form.notes" class="input input-bordered" placeholder="請輸入備註" /></label>
         </div>
@@ -83,6 +82,21 @@
         <div class="modal-action">
           <button class="btn" @click="closeModal">取消</button>
           <button class="btn btn-primary" @click="save">{{ form.id ? '更新' : '新增' }}</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="modal" :class="{ 'modal-open': showChargeMonthModal }">
+      <div class="modal-box max-w-md">
+        <h3 class="font-bold text-lg mb-3">選擇建立應收月份</h3>
+        <label class="form-control">
+          <span class="label-text mb-1">月份 *</span>
+          <input v-model="chargeMonth" type="month" class="input input-bordered" />
+        </label>
+        <p class="text-sm text-base-content/70 mt-3">將依合約起日的日建立所選月份的應收。</p>
+        <div class="modal-action">
+          <button class="btn" @click="closeChargeMonthModal">取消</button>
+          <button class="btn btn-primary" @click="createPeriodCharges">建立</button>
         </div>
       </div>
     </dialog>
@@ -98,14 +112,17 @@ const tenants = ref<any[]>([])
 const selectedRoomIds = ref<number[]>([])
 const selectedContractIds = ref<number[]>([])
 const keyword = ref('')
-const statusFilter = ref<'all' | '1' | '2' | '3'>('all')
+const statusFilter = ref<'all' | '1' | '3'>('1')
 const showModal = ref(false)
+const showChargeMonthModal = ref(false)
 const error = ref('')
 const notice = ref('')
 const toDateInput = (v: string) => (v ? v.slice(0, 10) : '')
 const toIsoDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString()
+const toMonthInput = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 const seed = ()=>({ id:0, contractNo:'', tenantId:0, startDateUtc:toDateInput(new Date().toISOString()), endDateUtc:toDateInput(new Date().toISOString()), monthlyRent:0, paymentIntervalMonths:1, deposit:0, occupantCount:1, notes:'', status:1 })
 const form = ref<any>(seed())
+const chargeMonth = ref(toMonthInput(new Date()))
 const periodPayableAmount = computed(() => Number(form.value.monthlyRent || 0) * Number(form.value.paymentIntervalMonths || 1))
 const allVisibleSelected = computed(() => items.value.length > 0 && items.value.every((x:any) => selectedContractIds.value.includes(x.id)))
 const groupedRooms = computed(() => {
@@ -140,21 +157,33 @@ const remove = async(id:number)=>{ await api.delete(`/contracts/${id}`); await l
 const selectAll = ()=>{ selectedContractIds.value = items.value.map((x:any) => x.id) }
 const clearSelection = ()=>{ selectedContractIds.value = [] }
 const toggleAllVisible = ()=>{ if (allVisibleSelected.value) clearSelection(); else selectAll() }
-const createPeriodCharges = async()=>{
+const openChargeMonthModal = ()=>{
   error.value = ''
   notice.value = ''
   if (!selectedContractIds.value.length) {
     error.value = '請先勾選至少一份合約'
     return
   }
+  chargeMonth.value = toMonthInput(new Date())
+  showChargeMonthModal.value = true
+}
+const closeChargeMonthModal = ()=>{ showChargeMonthModal.value = false }
+const createPeriodCharges = async()=>{
+  error.value = ''
+  notice.value = ''
+  if (!chargeMonth.value) {
+    error.value = '請選擇月份'
+    return
+  }
   try {
     const { data } = await api.post('/contracts/batch-create-period-charges', {
       contractIds: selectedContractIds.value,
-      referenceDateUtc: new Date().toISOString()
+      targetMonthUtc: toIsoDate(`${chargeMonth.value}-01`)
     })
     const createdCount = Number(data?.createdCount || 0)
     const skippedCount = Number(data?.skippedCount || 0)
     notice.value = `已建立 ${createdCount} 筆本期應收` + (skippedCount > 0 ? `，略過 ${skippedCount} 筆` : '')
+    closeChargeMonthModal()
   } catch (e:any) {
     error.value = e?.response?.data || e?.message || '建立本期應收失敗'
   }

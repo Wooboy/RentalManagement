@@ -26,8 +26,8 @@ import api from '../services/api'
 
 const route = useRoute()
 const router = useRouter()
-const username = ref('admin')
-const password = ref('admin123')
+const username = ref('')
+const password = ref('')
 const message = ref('')
 const isError = ref(false)
 

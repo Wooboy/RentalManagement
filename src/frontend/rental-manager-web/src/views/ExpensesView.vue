@@ -88,13 +88,14 @@ const expenseCategoryOptions = [
   { value: 9, label: '修繕' },
   { value: 99, label: '其他' }
 ]
+const defaultExpenseCategory = 2
 const toDateInput = (v: string) => (v ? v.slice(0,10) : '')
 const toIsoDate = (v: string) => {
   const d = new Date(`${v}T00:00:00Z`)
   if (Number.isNaN(d.getTime())) throw new Error('日期格式不正確')
   return d.toISOString()
 }
-const seed = ()=>({ id:0, propertyUnitId:0, propertyRoomId:0, category:1, billingStartUtc:toDateInput(new Date().toISOString()), billingEndUtc:toDateInput(new Date().toISOString()), amount:0, usageUnits:null as number | null, splitStatus:1, notes:'', occurredAtUtc:toDateInput(new Date().toISOString()) })
+const seed = ()=>({ id:0, propertyUnitId:0, propertyRoomId:0, category:defaultExpenseCategory, billingStartUtc:toDateInput(new Date().toISOString()), billingEndUtc:toDateInput(new Date().toISOString()), amount:0, usageUnits:null as number | null, splitStatus:1, notes:'', occurredAtUtc:toDateInput(new Date().toISOString()) })
 const splitStatusText = (v:number) => v === 2 ? '已分帳' : v === 3 ? '無需分帳' : '未分帳'
 const expenseCategoryText = (v:number) => expenseCategoryOptions.find(option => option.value === Number(v))?.label ?? String(v)
 const form = ref<any>(seed())
