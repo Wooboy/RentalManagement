@@ -23,6 +23,7 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+import { setAuthState } from '../services/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,10 +35,12 @@ const isError = ref(false)
 const login = async () => {
   try {
     const { data } = await api.post('/auth/login', { username: username.value, password: password.value })
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('auth_user_id', String(data.userId))
-    localStorage.setItem('auth_username', data.username)
-    localStorage.setItem('auth_role', String(data.role))
+    setAuthState({
+      token: data.token,
+      userId: String(data.userId),
+      username: data.username,
+      role: String(data.role)
+    })
     isError.value = false
     message.value = `登入成功：${data.username}`
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'

@@ -22,3 +22,4 @@ Thumbs.db
 tmp/
 publish/
 src/backend/RentalManager.Api/appsettings.Development.json
+src/backend/RentalManager.Api/Seed/seed-template.json

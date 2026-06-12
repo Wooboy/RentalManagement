@@ -66,21 +66,33 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from './services/api'
+import { authState, clearAuthState, syncAuthState } from './services/auth'
 
 const route = useRoute()
 const router = useRouter()
 const isLoginPage = computed(() => route.path === '/login')
-const currentUser = computed(() => localStorage.getItem('auth_username') || '未登入')
-const isAdmin = computed(() => localStorage.getItem('auth_role') === '1')
+const currentUser = computed(() => authState.username || '未登入')
+const isAdmin = computed(() => authState.role === '1')
 const linkClass = (path: string) => (route.path === path ? 'active' : '')
 const showPasswordModal = ref(false)
 const passwordForm = ref({ currentPassword: '', newPassword: '' })
 const passwordMessage = ref('')
 const passwordError = ref(false)
+
+const handleStorageChange = () => {
+  syncAuthState()
+}
+
+onMounted(() => {
+  window.addEventListener('storage', handleStorageChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('storage', handleStorageChange)
+})
 
 const resetPasswordForm = () => {
   passwordForm.value = { currentPassword: '', newPassword: '' }
@@ -110,10 +122,7 @@ const changePassword = async () => {
 }
 
 const logout = async () => {
-  localStorage.removeItem('token')
-  localStorage.removeItem('auth_username')
-  localStorage.removeItem('auth_user_id')
-  localStorage.removeItem('auth_role')
+  clearAuthState()
   await router.push('/login')
 }
 </script>
