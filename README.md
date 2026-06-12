@@ -71,21 +71,27 @@
 
 ### Synology NAS 部署
 1. 在本機執行：
-    - `powershell -ExecutionPolicy Bypass -File .\scripts\publish-local.ps1`
-2. 將整個 `publish/` 目錄放到 NAS，例如 `/volume1/docker/rental-manager`
-3. 把 `deploy/.env.example` 或 `publish/.env.example` 複製成 `publish/.env`，填入正式值
-4. 在 Synology Container Manager 匯入 `publish/docker-compose.yml`
-5. Working directory 指到 `publish` 目錄
-6. 啟動堆疊後，從 `http://NAS_IP:8080` 存取
+   - `powershell -ExecutionPolicy Bypass -File .\scripts\publish-local.ps1`
+2. 腳本會在 `publish/` 產出部署成品：
+   - `api/publish/`：後端執行檔
+   - `web/dist/`：前端靜態檔案
+   - `docker/`：Dockerfile
+   - `docker-compose.yml`
+   - `.env.example`
+   - `nginx.conf`
+   - `seed/`
+3. 將整個 `publish/` 目錄放到 NAS，例如 `/volume1/docker/rental-manager`
+4. 在 NAS 上將 `.env.example` 複製成 `.env`，填入正式值
+5. 開啟 Synology Container Manager
+6. 使用 `publish/docker-compose.yml` 建立專案，working directory 指到 `publish` 所在目錄
+7. 啟動後，從 `http://NAS_IP:8080` 存取
 
 ### 更新流程
 1. 在本機修改程式
 2. 重新執行：
    - `powershell -ExecutionPolicy Bypass -File .\scripts\publish-local.ps1`
-3. 把新的 `publish/` 同步到 NAS
-4. 在 NAS 執行：
-   - `cd /volume1/docker/rental-manager`
-   - `docker compose up -d --build`
+3. 把新的 `publish/` 目錄覆蓋到 NAS
+4. 在 Synology Container Manager 重新部署或重新啟動專案
 
 ### 建議
 - 若要用正式網域，請在 Synology Reverse Proxy 將網域導到 `web` 對外埠。
