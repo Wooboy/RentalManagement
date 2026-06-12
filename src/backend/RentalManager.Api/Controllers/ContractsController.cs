@@ -8,6 +8,7 @@ namespace RentalManager.Api.Controllers;
 
 public record ContractUpsertRequest(
     string ContractNo,
+    string ContractName,
     int TenantId,
     List<int> PropertyRoomIds,
     DateTime StartDateUtc,
@@ -36,7 +37,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
     public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] string? keyword, [FromQuery] int? propertyUnitId, [FromQuery] int? propertyRoomId, [FromQuery] int? status)
     {
         var query = db.Contracts.Include(x => x.Tenant).Include(x => x.PropertyUnit).AsQueryable();
-        if (!string.IsNullOrWhiteSpace(keyword)) query = query.Where(x => x.ContractNo.Contains(keyword) || x.PropertyName.Contains(keyword));
+        if (!string.IsNullOrWhiteSpace(keyword)) query = query.Where(x => x.ContractNo.Contains(keyword) || x.ContractName.Contains(keyword) || x.PropertyName.Contains(keyword));
         if (status.HasValue) query = query.Where(x => (int)x.Status == status.Value);
 
         if (propertyUnitId.HasValue || propertyRoomId.HasValue)
@@ -70,7 +71,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
             }).ToList());
 
         var rows = contracts.Select(c => new {
-            c.Id, c.ContractNo, c.TenantId, c.Tenant, c.PropertyUnitId, c.PropertyName, c.PropertyAddress,
+            c.Id, c.ContractNo, c.ContractName, c.TenantId, c.Tenant, c.PropertyUnitId, c.PropertyName, c.PropertyAddress,
             c.StartDateUtc, c.EndDateUtc, c.MonthlyRent, c.PaymentIntervalMonths, c.PeriodPayableAmount, c.Deposit, c.OccupantCount, c.Notes, c.ElectricityRuleType, c.Status,
             c.CreatedAtUtc, c.UpdatedAtUtc,
             PropertyRoomIds = roomMap.ContainsKey(c.Id) ? roomMap[c.Id].Select(r => r.PropertyRoomId).ToList() : new List<int>(),
@@ -89,6 +90,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
         var contract = new Contract
         {
             ContractNo = string.IsNullOrWhiteSpace(model.ContractNo) ? $"AUTO-{DateTime.UtcNow:yyyyMMddHHmmss}" : model.ContractNo.Trim(),
+            ContractName = model.ContractName.Trim(),
             TenantId = model.TenantId,
             PropertyUnitId = valid.propertyUnitId,
             PropertyName = valid.propertyDisplay!,
@@ -127,6 +129,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
         {
             item.ContractNo = model.ContractNo.Trim();
         }
+        item.ContractName = model.ContractName.Trim();
         item.TenantId = model.TenantId;
         item.PropertyUnitId = valid.propertyUnitId;
         item.PropertyName = valid.propertyDisplay!;
@@ -200,6 +203,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
             {
                 ContractId = contract.Id,
                 Category = ChargeCategory.Rent,
+                OccurredAtUtc = period.start,
                 BillingStartUtc = period.start,
                 BillingEndUtc = period.end,
                 Amount = contract.PeriodPayableAmount,
@@ -230,6 +234,7 @@ public class ContractsController(AppDbContext db) : ControllerBase
     private async Task<(bool ok, string? error, int? propertyUnitId, string? propertyDisplay, string? propertyAddress)> ValidateAndResolve(ContractUpsertRequest model)
     {
         if (model.TenantId <= 0) return (false, "請選擇租客", null, null, null);
+        if (string.IsNullOrWhiteSpace(model.ContractName)) return (false, "請輸入合約名稱", null, null, null);
         if (model.PaymentIntervalMonths != 1 && model.PaymentIntervalMonths != 3 && model.PaymentIntervalMonths != 12) return (false, "付款間隔只允許每月、每季、每年", null, null, null);
         if (model.PropertyRoomIds is null || model.PropertyRoomIds.Count == 0) return (false, "請至少選擇一間房間", null, null, null);
         if (!await db.Tenants.AnyAsync(x => x.Id == model.TenantId)) return (false, "租客不存在", null, null, null);

@@ -31,7 +31,6 @@
   "[vue]": {
     "editor.defaultFormatter": "Vue.volar"
   },
-  "dotnet.defaultSolution": "src/backend/RentalManager.Api/RentalManager.Api.csproj",
   "omnisharp.enableRoslynAnalyzers": true,
   "omnisharp.enableEditorConfigSupport": true,
   "csharp.format.enable": true,

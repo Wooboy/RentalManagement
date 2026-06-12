@@ -31,7 +31,7 @@ public class ExpensesController(AppDbContext db) : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] DateTime? startDateUtc, [FromQuery] DateTime? endDateUtc)
+    public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] DateTime? startDateUtc, [FromQuery] DateTime? endDateUtc, [FromQuery] ExpenseCategory? category, [FromQuery] ExpenseSplitStatus? splitStatus)
     {
         var query = db.ExpenseRecords.Include(x => x.PropertyUnit).Include(x => x.PropertyRoom).AsQueryable();
         if (startDateUtc.HasValue)
@@ -41,6 +41,14 @@ public class ExpensesController(AppDbContext db) : ControllerBase
         if (endDateUtc.HasValue)
         {
             query = query.Where(x => x.BillingStartUtc <= endDateUtc.Value);
+        }
+        if (category.HasValue)
+        {
+            query = query.Where(x => x.Category == category.Value);
+        }
+        if (splitStatus.HasValue)
+        {
+            query = query.Where(x => x.SplitStatus == splitStatus.Value);
         }
 
         var rows = await query.OrderByDescending(x => x.Id)

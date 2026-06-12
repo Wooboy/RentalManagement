@@ -429,6 +429,21 @@ public class ElectricityController(AppDbContext db) : ControllerBase
         if (bill is null) return NotFound("帳單不存在");
         if (bill.ChargesCreated) return BadRequest("此帳單已轉入應收，不能重複轉入");
 
+        var expenseBillIds = (request?.ExpenseBillIds ?? [])
+            .Distinct()
+            .Where(x => x > 0)
+            .ToList();
+        var expenseBills = expenseBillIds.Count == 0
+            ? []
+            : await db.ExpenseRecords
+                .Where(x => expenseBillIds.Contains(x.Id) && x.Category == ExpenseCategory.Electricity)
+                .OrderBy(x => x.OccurredAtUtc)
+                .ThenBy(x => x.Id)
+                .ToListAsync();
+        var occurredAtUtc = expenseBills.Count > 0
+            ? expenseBills[0].OccurredAtUtc
+            : bill.BillingStartUtc;
+
         var allocations = await db.ElectricityAllocations
             .Where(x => x.ElectricityBillId == billId)
             .ToListAsync();
@@ -445,6 +460,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
             {
                 ContractId = distinctContractIds[0],
                 Category = ChargeCategory.Electricity,
+                OccurredAtUtc = occurredAtUtc,
                 BillingStartUtc = bill.BillingStartUtc,
                 BillingEndUtc = bill.BillingEndUtc,
                 UsageUnits = bill.TotalUnits,
@@ -464,6 +480,7 @@ public class ElectricityController(AppDbContext db) : ControllerBase
                 {
                     ContractId = group.Key,
                     Category = ChargeCategory.Electricity,
+                    OccurredAtUtc = occurredAtUtc,
                     BillingStartUtc = bill.BillingStartUtc,
                     BillingEndUtc = bill.BillingEndUtc,
                     UsageUnits = group.Sum(x => x.TenantUnits),
@@ -479,15 +496,8 @@ public class ElectricityController(AppDbContext db) : ControllerBase
 
         await db.SaveChangesAsync();
 
-        var expenseBillIds = (request?.ExpenseBillIds ?? [])
-            .Distinct()
-            .Where(x => x > 0)
-            .ToList();
         if (expenseBillIds.Count > 0)
         {
-            var expenseBills = await db.ExpenseRecords
-                .Where(x => expenseBillIds.Contains(x.Id) && x.Category == ExpenseCategory.Electricity)
-                .ToListAsync();
             foreach (var expenseBill in expenseBills)
             {
                 expenseBill.SplitStatus = ExpenseSplitStatus.Split;

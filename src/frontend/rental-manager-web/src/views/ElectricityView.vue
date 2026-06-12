@@ -166,7 +166,7 @@ const partyText = (row:any) => Number(row.targetType) === 2 ? '房東自付' : `
 const formatDate = (value:any) => value ? String(value).slice(0, 10) : '-'
 const buildPrivateUsageLine = (row:any) => {
   if (row.meterStart == null || row.meterEnd == null) return `${round2(Number(row.tenantUnits || 0))}度`
-  return `(${formatDate(row.meterStartDateUtc)}) ${round2(Number(row.meterStart))} - (${formatDate(row.meterEndDateUtc)}) ${round2(Number(row.meterEnd))} = ${round2(Number(row.tenantUnits || 0))}度`
+  return `本期度數(${formatDate(row.meterEndDateUtc)}) ${round2(Number(row.meterEnd))} - 上期度數(${formatDate(row.meterStartDateUtc)}) ${round2(Number(row.meterStart))} = ${round2(Number(row.tenantUnits || 0))}度`
 }
 
 const loadExpenseBills = async () => {

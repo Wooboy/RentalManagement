@@ -5,6 +5,13 @@
       <label class="form-control min-w-56"><span class="label-text mb-1">查詢起日</span><input v-model="searchStartDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
       <label class="form-control min-w-56"><span class="label-text mb-1">查詢迄日</span><input v-model="searchEndDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
       <label class="form-control min-w-44">
+        <span class="label-text mb-1">項目類別</span>
+        <select v-model.number="searchCategory" class="select select-bordered">
+          <option :value="0">全部</option>
+          <option v-for="option in expenseCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select>
+      </label>
+      <label class="form-control min-w-44">
         <span class="label-text mb-1">分帳狀態</span>
         <select v-model.number="searchSplitStatus" class="select select-bordered">
           <option :value="0">全部</option>
@@ -13,7 +20,7 @@
           <option :value="3">無需分帳</option>
         </select>
       </label>
-      <button class="btn" @click="load">查詢</button>
+      <button class="btn" @click="search">查詢</button>
       <button class="btn btn-primary" @click="openCreateModal">新增</button>
     </div>
 
@@ -67,9 +74,13 @@
 </template>
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+const route = useRoute()
+const router = useRouter()
 const searchStartDate = ref('2000-01-01')
 const searchEndDate = ref('2099-12-31')
+const searchCategory = ref(0)
 const searchSplitStatus = ref(0)
 const items = ref<any[]>([])
 const properties = ref<any[]>([])
@@ -100,12 +111,36 @@ const splitStatusText = (v:number) => v === 2 ? '已分帳' : v === 3 ? '無需�
 const expenseCategoryText = (v:number) => expenseCategoryOptions.find(option => option.value === Number(v))?.label ?? String(v)
 const form = ref<any>(seed())
 const load = async()=>{
-  const {data}=await api.get('/expenses',{ params:{ startDateUtc: toIsoDate(searchStartDate.value), endDateUtc: toIsoDate(searchEndDate.value) } })
-  items.value = searchSplitStatus.value > 0 ? data.filter((x:any) => Number(x.splitStatus || 1) === Number(searchSplitStatus.value)) : data
+  const params:any = { startDateUtc: toIsoDate(searchStartDate.value), endDateUtc: toIsoDate(searchEndDate.value) }
+  if (searchCategory.value > 0) params.category = searchCategory.value
+  if (searchSplitStatus.value > 0) params.splitStatus = searchSplitStatus.value
+  const {data}=await api.get('/expenses',{ params })
+  items.value = data
 }
 const loadProperties = async()=>{ const {data}=await api.get('/properties'); properties.value=data }
 const loadRooms = async()=>{ if(!form.value.propertyUnitId){ rooms.value=[]; return }; const {data}=await api.get('/rooms',{params:{propertyUnitId:form.value.propertyUnitId}}); rooms.value=data }
-onMounted(async()=>{ await Promise.all([load(), loadProperties()]) })
+const applyQueryFilter = () => {
+  const qStart = String(route.query.startDate ?? '')
+  const qEnd = String(route.query.endDate ?? '')
+  const qCategory = Number(route.query.category ?? 0)
+  const qSplitStatus = Number(route.query.splitStatus ?? 0)
+  if (qStart) searchStartDate.value = qStart
+  if (qEnd) searchEndDate.value = qEnd
+  if (expenseCategoryOptions.some(option => option.value === qCategory)) searchCategory.value = qCategory
+  if ([1, 2, 3].includes(qSplitStatus)) searchSplitStatus.value = qSplitStatus
+}
+onMounted(async()=>{ applyQueryFilter(); await Promise.all([load(), loadProperties()]) })
+const search = async()=>{
+  await router.replace({
+    query: {
+      startDate: searchStartDate.value,
+      endDate: searchEndDate.value,
+      category: searchCategory.value > 0 ? String(searchCategory.value) : undefined,
+      splitStatus: searchSplitStatus.value > 0 ? String(searchSplitStatus.value) : undefined
+    }
+  })
+  await load()
+}
 const onPropertyChange = async()=>{ form.value.propertyRoomId=0; await loadRooms() }
 const reset = ()=>{ form.value=seed(); rooms.value=[]; error.value='' }
 const openCreateModal = ()=>{ reset(); showModal.value = true }

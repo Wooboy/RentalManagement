@@ -26,27 +26,58 @@ public class ChargesController(AppDbContext db) : ControllerBase
         return null;
     }
 
-    [HttpGet]
-    public async Task<ActionResult<IEnumerable<ChargeRecord>>> GetAll([FromQuery] DateTime? startDateUtc, [FromQuery] DateTime? endDateUtc, [FromQuery] bool? isPaid)
+    private static void NormalizeOccurredAtUtc(ChargeRecord model)
     {
-        var query = db.ChargeRecords.AsQueryable();
+        if (model.OccurredAtUtc == default)
+        {
+            model.OccurredAtUtc = model.BillingStartUtc;
+        }
+    }
+
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<object>>> GetAll([FromQuery] DateTime? startDateUtc, [FromQuery] DateTime? endDateUtc, [FromQuery] bool? isPaid, [FromQuery] ChargeCategory? category)
+    {
+        var query = db.ChargeRecords.Include(x => x.Contract).AsQueryable();
         if (startDateUtc.HasValue)
         {
-            query = query.Where(x => x.BillingStartUtc >= startDateUtc.Value);
+            query = query.Where(x => x.OccurredAtUtc >= startDateUtc.Value);
         }
         if (endDateUtc.HasValue)
         {
-            query = query.Where(x => x.BillingStartUtc <= endDateUtc.Value);
+            query = query.Where(x => x.OccurredAtUtc <= endDateUtc.Value);
         }
         if (isPaid.HasValue)
         {
             query = query.Where(x => x.IsPaid == isPaid.Value);
         }
+        if (category.HasValue)
+        {
+            query = query.Where(x => x.Category == category.Value);
+        }
 
         return Ok(await query
             .OrderBy(x => x.ContractId)
-            .ThenBy(x => x.BillingStartUtc)
+            .ThenBy(x => x.OccurredAtUtc)
             .ThenBy(x => x.Id)
+            .Select(x => new
+            {
+                x.Id,
+                x.ContractId,
+                ContractName = x.Contract != null ? x.Contract.ContractName : null,
+                ContractNo = x.Contract != null ? x.Contract.ContractNo : null,
+                x.Category,
+                x.OccurredAtUtc,
+                x.BillingStartUtc,
+                x.BillingEndUtc,
+                x.MeterStart,
+                x.MeterEnd,
+                x.UsageUnits,
+                x.Amount,
+                x.Notes,
+                x.IsPaid,
+                x.PaidAtUtc,
+                x.CreatedAtUtc
+            })
             .ToListAsync());
     }
 
@@ -60,6 +91,7 @@ public class ChargesController(AppDbContext db) : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ChargeRecord>> Create(ChargeRecord model)
     {
+        NormalizeOccurredAtUtc(model);
         var error = await ValidateAsync(model);
         if (error is not null) return BadRequest(error);
 
@@ -78,11 +110,13 @@ public class ChargesController(AppDbContext db) : ControllerBase
     {
         var item = await db.ChargeRecords.FindAsync(id);
         if (item is null) return NotFound();
+        NormalizeOccurredAtUtc(model);
         var error = await ValidateAsync(model);
         if (error is not null) return BadRequest(error);
 
         item.ContractId = model.ContractId;
         item.Category = model.Category;
+        item.OccurredAtUtc = model.OccurredAtUtc;
         item.BillingStartUtc = model.BillingStartUtc;
         item.BillingEndUtc = model.BillingEndUtc;
         item.MeterStart = model.MeterStart;

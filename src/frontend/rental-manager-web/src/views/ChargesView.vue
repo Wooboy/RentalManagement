@@ -4,6 +4,9 @@
     <div class="flex flex-wrap items-end gap-3 mb-3">
       <label class="form-control min-w-56"><span class="label-text mb-1">查詢起日</span><input v-model="startDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
       <label class="form-control min-w-56"><span class="label-text mb-1">查詢迄日</span><input v-model="endDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
+      <label class="form-control min-w-40"><span class="label-text mb-1">項目類別</span><select v-model.number="categoryFilter" class="select select-bordered">
+        <option :value="0">全部</option><option v-for="option in chargeCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+      </select></label>
       <label class="form-control min-w-40"><span class="label-text mb-1">收款狀態</span><select v-model="paidFilter" class="select select-bordered">
         <option value="all">全部</option><option value="paid">已收</option><option value="unpaid">未收</option>
       </select></label>
@@ -15,7 +18,7 @@
       <thead><tr><th>合約</th><th>類別</th><th>金額</th><th>發生日期</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         <tr v-for="c in items" :key="c.id">
-          <td>{{ c.contractId }}</td><td>{{ chargeCategoryText(c.category) }}</td><td>{{ c.amount }}</td><td>{{ c.billingStartUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
+          <td>{{ c.contractName || c.contractNo || `#${c.contractId}` }}</td><td>{{ chargeCategoryText(c.category) }}</td><td>{{ c.amount }}</td><td>{{ c.occurredAtUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
           <td class="flex gap-2 justify-end">
             <button v-if="!c.isPaid" class="btn btn-sm btn-success" @click="markPaid(c)">收款</button>
             <button class="btn btn-sm" @click="edit(c)">編輯</button>
@@ -31,7 +34,7 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
           <label class="form-control"><span class="label-text mb-1">合約 *</span><select v-model.number="form.contractId" class="select select-bordered">
             <option :value="0">選擇合約 *</option>
-            <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.propertyName }}</option>
+            <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.contractName || c.propertyName || `#${c.id}` }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">類別</span><select v-model.number="form.category" class="select select-bordered">
             <option v-for="option in chargeCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
@@ -60,7 +63,8 @@ const route = useRoute()
 const router = useRouter()
 const startDate = ref('2000-01-01')
 const endDate = ref('2099-12-31')
-const paidFilter = ref<'all'|'paid'|'unpaid'>('all')
+const categoryFilter = ref(0)
+const paidFilter = ref<'all'|'paid'|'unpaid'>('unpaid')
 const items = ref<any[]>([])
 const contracts = ref<any[]>([])
 const error = ref('')
@@ -78,6 +82,7 @@ const chargeCategoryText = (v:number) => chargeCategoryOptions.find(option => op
 const form = ref<any>(seed())
 const load = async()=>{
   const params:any = { startDateUtc: toIsoDate(startDate.value), endDateUtc: toIsoDate(endDate.value) }
+  if (categoryFilter.value > 0) params.category = categoryFilter.value
   if (paidFilter.value === 'paid') params.isPaid = true
   if (paidFilter.value === 'unpaid') params.isPaid = false
   const {data}=await api.get('/charges',{params})
@@ -87,20 +92,25 @@ const loadContracts = async()=>{ const {data}=await api.get('/contracts'); contr
 const applyQueryFilter = () => {
   const qStart = String(route.query.startDate ?? '')
   const qEnd = String(route.query.endDate ?? '')
+  const qCategory = Number(route.query.category ?? 0)
   const qPaid = String(route.query.paid ?? '')
   if (qStart) startDate.value = qStart
   if (qEnd) endDate.value = qEnd
+  if (chargeCategoryOptions.some(option => option.value === qCategory)) categoryFilter.value = qCategory
   if (qPaid === 'paid' || qPaid === 'unpaid' || qPaid === 'all') paidFilter.value = qPaid
 }
 onMounted(async()=>{ applyQueryFilter(); await Promise.all([load(),loadContracts()]) })
-const search = async()=>{ await router.replace({ query: { startDate: startDate.value, endDate: endDate.value, paid: paidFilter.value } }); await load() }
+const search = async()=>{
+  await router.replace({ query: { startDate: startDate.value, endDate: endDate.value, category: categoryFilter.value > 0 ? String(categoryFilter.value) : undefined, paid: paidFilter.value } })
+  await load()
+}
 const reset = ()=>{ form.value=seed(); error.value='' }
 const openCreateModal = ()=>{ reset(); showModal.value = true }
 const closeModal = ()=>{ showModal.value = false; reset() }
 const edit = (c:any)=>{
   form.value={
     id:c.id, contractId:c.contractId, category:c.category, amount:c.amount, notes:c.notes ?? '',
-    occurredDate:toDateInput(c.billingStartUtc),
+    occurredDate:toDateInput(c.occurredAtUtc || c.billingStartUtc),
     isPaid:c.isPaid ? 1 : 0
   }
   error.value=''; showModal.value = true
@@ -114,6 +124,7 @@ const save = async()=>{
     id: form.value.id || 0,
     contractId: form.value.contractId,
     category: form.value.category,
+    occurredAtUtc: occurredIso,
     billingStartUtc: occurredIso,
     billingEndUtc: occurredIso,
     amount: form.value.amount,

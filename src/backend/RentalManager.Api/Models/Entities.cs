@@ -64,6 +64,7 @@ public class Contract
 {
     public int Id { get; set; }
     public string ContractNo { get; set; } = string.Empty;
+    public string ContractName { get; set; } = string.Empty;
     public int TenantId { get; set; }
     public Tenant? Tenant { get; set; }
     public int? PropertyUnitId { get; set; }
@@ -99,6 +100,7 @@ public class ChargeRecord
     public int ContractId { get; set; }
     public Contract? Contract { get; set; }
     public ChargeCategory Category { get; set; }
+    public DateTime OccurredAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime BillingStartUtc { get; set; }
     public DateTime BillingEndUtc { get; set; }
     public decimal? MeterStart { get; set; }
