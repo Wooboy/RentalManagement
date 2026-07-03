@@ -1,73 +1,35 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RentalManager.Api.Data;
-using RentalManager.Api.Models;
+using RentalManager.Api.Dtos;
+using RentalManager.Api.Services;
 
 namespace RentalManager.Api.Controllers;
 
 [ApiController]
 [Authorize]
 [Route("api/properties")]
-public class PropertiesController(AppDbContext db) : ControllerBase
+public class PropertiesController(PropertyService service) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<PropertyUnit>>> GetAll([FromQuery] string? keyword)
-    {
-        var query = db.PropertyUnits.AsQueryable();
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            query = query.Where(x => x.Name.Contains(keyword) || x.Address.Contains(keyword));
-        }
-
-        return Ok(await query.OrderBy(x => x.Name).ThenBy(x => x.Id).ToListAsync());
-    }
+    public async Task<ActionResult<IEnumerable<PropertyResponse>>> GetAll([FromQuery] string? keyword)
+        => Ok(await service.GetAllAsync(keyword));
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<PropertyUnit>> GetById(int id)
-    {
-        var item = await db.PropertyUnits.FindAsync(id);
-        return item is null ? NotFound() : Ok(item);
-    }
+    public async Task<ActionResult<PropertyResponse>> GetById(int id)
+        => Ok(await service.GetByIdAsync(id));
 
     [HttpPost]
-    public async Task<ActionResult<PropertyUnit>> Create(PropertyUnit model)
-    {
-        model.Code = string.IsNullOrWhiteSpace(model.Code) ? $"P{DateTime.UtcNow:yyyyMMddHHmmss}" : model.Code.Trim();
-        model.CreatedAtUtc = DateTime.UtcNow;
-        model.UpdatedAtUtc = DateTime.UtcNow;
-        db.PropertyUnits.Add(model);
-        await db.SaveChangesAsync();
-        return Ok(model);
-    }
+    public async Task<ActionResult<PropertyResponse>> Create(PropertyUpsertRequest request)
+        => Ok(await service.CreateAsync(request));
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<PropertyUnit>> Update(int id, PropertyUnit model)
-    {
-        var item = await db.PropertyUnits.FindAsync(id);
-        if (item is null) return NotFound();
-
-        if (!string.IsNullOrWhiteSpace(model.Code))
-        {
-            item.Code = model.Code.Trim();
-        }
-        item.Name = model.Name;
-        item.Address = model.Address;
-        item.Notes = model.Notes;
-        item.UpdatedAtUtc = DateTime.UtcNow;
-
-        await db.SaveChangesAsync();
-        return Ok(item);
-    }
+    public async Task<ActionResult<PropertyResponse>> Update(int id, PropertyUpsertRequest request)
+        => Ok(await service.UpdateAsync(id, request));
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var item = await db.PropertyUnits.FindAsync(id);
-        if (item is null) return NotFound();
-
-        db.PropertyUnits.Remove(item);
-        await db.SaveChangesAsync();
+        await service.DeleteAsync(id);
         return NoContent();
     }
 }
