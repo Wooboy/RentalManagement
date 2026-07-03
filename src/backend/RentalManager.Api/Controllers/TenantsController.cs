@@ -7,7 +7,7 @@ namespace RentalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/tenants")]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 public class TenantsController(TenantService service) : ControllerBase
 {
     [HttpGet]

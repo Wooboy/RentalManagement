@@ -5,7 +5,7 @@ namespace RentalManager.Api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
+    public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<PropertyUnit> PropertyUnits => Set<PropertyUnit>();
     public DbSet<PropertyRoom> PropertyRooms => Set<PropertyRoom>();
     public DbSet<ContractRoom> ContractRooms => Set<ContractRoom>();
@@ -61,11 +61,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasForeignKey(x => x.PropertyRoomId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        modelBuilder.Entity<AdminUser>().HasData(new AdminUser
+        modelBuilder.Entity<AppUser>()
+            .HasIndex(x => x.Username)
+            .IsUnique();
+        modelBuilder.Entity<AppUser>()
+            .HasOne(x => x.Tenant)
+            .WithMany()
+            .HasForeignKey(x => x.TenantId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<AppUser>().HasData(new AppUser
         {
             Id = 1,
             Username = "admin",
             Role = UserRoleType.Admin,
+            IsActive = true,
             CreatedAtUtc = new DateTime(2026, 5, 24, 4, 11, 21, 638, DateTimeKind.Utc).AddTicks(8194),
             PasswordHash = "$2a$11$HlDgIuiyVxHd356KWpNR4OtSocmp5RQNYprtQXuKFl6jBlbaRkq3a"
         });

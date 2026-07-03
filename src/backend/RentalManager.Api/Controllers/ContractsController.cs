@@ -7,7 +7,7 @@ namespace RentalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/contracts")]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 public class ContractsController(ContractService service) : ControllerBase
 {
     [HttpGet]

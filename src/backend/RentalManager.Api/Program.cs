@@ -16,7 +16,7 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<DbSeedService>();
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddScoped<AdminUserService>();
+builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<TenantService>();
 builder.Services.AddScoped<PropertyService>();
 builder.Services.AddScoped<RoomService>();
@@ -45,6 +45,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
         };
     });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", p => p.RequireRole("Admin"));
+    options.AddPolicy("TenantOnly", p => p.RequireRole("Tenant"));
+});
 
 builder.Services.AddCors(options =>
 {

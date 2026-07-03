@@ -10,12 +10,18 @@ public enum ChargeCategory { Rent = 1, Water = 2, Electricity = 3, Other = 99 }
 public enum ExpenseCategory { Water = 1, Electricity = 2, Gas = 3, Internet = 4, Television = 5, Management = 6, Parking = 7, Tax = 8, Repair = 9, Other = 99 }
 public enum ExpenseSplitStatus { Unsplit = 1, Split = 2, NoNeed = 3 }
 
-public class AdminUser
+public class AppUser
 {
     public int Id { get; set; }
     public string Username { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public UserRoleType Role { get; set; } = UserRoleType.Admin;
+    public string? DisplayName { get; set; }
+    public string? Email { get; set; }
+    /// <summary>租客帳號對應的租客；管理員帳號為 null。</summary>
+    public int? TenantId { get; set; }
+    public Tenant? Tenant { get; set; }
+    public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 

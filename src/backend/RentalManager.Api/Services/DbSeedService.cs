@@ -7,7 +7,7 @@ namespace RentalManager.Api.Services;
 
 public class AppSeedData
 {
-    public List<AdminUser> AdminUsers { get; set; } = [];
+    public List<AppUser> Users { get; set; } = [];
     public List<PropertyUnit> PropertyUnits { get; set; } = [];
     public List<PropertyRoom> PropertyRooms { get; set; } = [];
     public List<Tenant> Tenants { get; set; } = [];
@@ -34,7 +34,7 @@ public class DbSeedService(AppDbContext db, IWebHostEnvironment env, IConfigurat
 
         var data = new AppSeedData
         {
-            AdminUsers = await db.AdminUsers.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
+            Users = await db.Users.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
             PropertyUnits = await db.PropertyUnits.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
             PropertyRooms = await db.PropertyRooms.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
             Tenants = await db.Tenants.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
@@ -68,10 +68,10 @@ public class DbSeedService(AppDbContext db, IWebHostEnvironment env, IConfigurat
 
     private async Task ImportAsync(AppSeedData data)
     {
-        if (data.AdminUsers.Count > 0)
+        if (data.Users.Count > 0)
         {
-            var existingAdminIds = await db.AdminUsers.AsNoTracking().Select(x => x.Id).ToListAsync();
-            db.AdminUsers.AddRange(data.AdminUsers.Where(x => !existingAdminIds.Contains(x.Id)));
+            var existingUserIds = await db.Users.AsNoTracking().Select(x => x.Id).ToListAsync();
+            db.Users.AddRange(data.Users.Where(x => !existingUserIds.Contains(x.Id)));
         }
 
         if (data.PropertyUnits.Count > 0) db.PropertyUnits.AddRange(data.PropertyUnits);
@@ -119,7 +119,7 @@ public class DbSeedService(AppDbContext db, IWebHostEnvironment env, IConfigurat
     {
         foreach (var table in new[]
                  {
-                     "AdminUsers",
+                     "Users",
                      "PropertyUnits",
                      "PropertyRooms",
                      "Tenants",

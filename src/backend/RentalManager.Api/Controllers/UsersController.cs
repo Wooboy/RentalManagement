@@ -7,20 +7,20 @@ using RentalManager.Api.Services;
 namespace RentalManager.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "Admin")]
-[Route("api/admin-users")]
-public class AdminUsersController(AdminUserService service) : ControllerBase
+[Authorize(Policy = "AdminOnly")]
+[Route("api/users")]
+public class UsersController(UserService service) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AdminUserResponse>>> GetAll([FromQuery] string? keyword)
+    public async Task<ActionResult<IEnumerable<UserResponse>>> GetAll([FromQuery] string? keyword)
         => Ok(await service.GetAllAsync(keyword));
 
     [HttpPost]
-    public async Task<ActionResult<AdminUserResponse>> Create(AdminUserUpsertRequest request)
+    public async Task<ActionResult<UserResponse>> Create(UserUpsertRequest request)
         => Ok(await service.CreateAsync(request));
 
     [HttpPut("{id:int}")]
-    public async Task<ActionResult<AdminUserResponse>> Update(int id, AdminUserUpsertRequest request)
+    public async Task<ActionResult<UserResponse>> Update(int id, UserUpsertRequest request)
         => Ok(await service.UpdateAsync(id, request));
 
     [HttpDelete("{id:int}")]

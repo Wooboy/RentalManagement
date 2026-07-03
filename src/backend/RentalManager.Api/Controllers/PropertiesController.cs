@@ -6,7 +6,7 @@ using RentalManager.Api.Services;
 namespace RentalManager.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "AdminOnly")]
 [Route("api/properties")]
 public class PropertiesController(PropertyService service) : ControllerBase
 {
