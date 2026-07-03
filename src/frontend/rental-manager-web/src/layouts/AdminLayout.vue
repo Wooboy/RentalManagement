@@ -33,6 +33,9 @@
           </ul>
         </nav>
         <div class="p-4 border-t border-base-300">
+          <p class="text-xs text-base-content/40 mb-2" :title="buildTime ? `建置於 ${buildTime}` : ''">
+            v{{ appVersion }}<template v-if="buildTime"> · {{ buildTime }}</template>
+          </p>
           <p class="text-xs text-base-content/60 mb-1">目前登入</p>
           <div class="dropdown dropdown-top w-full">
             <div tabindex="0" role="button" class="btn btn-outline w-full justify-between">
@@ -92,6 +95,9 @@ const navItems = [
   { to: '/admin/repairs', label: '報修管理' },
   { to: '/admin/users', label: '帳號管理' }
 ]
+
+const appVersion = import.meta.env.APP_VERSION || 'dev'
+const buildTime = import.meta.env.BUILD_TIME || ''
 
 const drawerOpen = ref(false)
 const currentUser = computed(() => auth.displayName || auth.username || '未登入')
