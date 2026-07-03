@@ -10,6 +10,8 @@ public enum ChargeCategory { Rent = 1, Water = 2, Electricity = 3, Other = 99 }
 public enum ExpenseCategory { Water = 1, Electricity = 2, Gas = 3, Internet = 4, Television = 5, Management = 6, Parking = 7, Tax = 8, Repair = 9, Other = 99 }
 public enum ExpenseSplitStatus { Unsplit = 1, Split = 2, NoNeed = 3 }
 public enum AttachmentEntityType { Contract = 1, ChargeRecord = 2, ExpenseRecord = 3, RepairTicket = 4 }
+public enum RepairTicketStatus { Submitted = 1, InProgress = 2, Resolved = 3, Closed = 4, Cancelled = 5 }
+public enum RepairTicketPriority { Low = 1, Normal = 2, High = 3, Urgent = 4 }
 
 public class AppUser
 {
@@ -179,6 +181,39 @@ public class ElectricityAllocation
     public decimal PrivateAmount { get; set; }
     public decimal PublicAmount { get; set; }
     public decimal PayableAmount { get; set; }
+}
+
+public class RepairTicket
+{
+    public int Id { get; set; }
+    public int ContractId { get; set; }
+    public Contract? Contract { get; set; }
+    public int? PropertyUnitId { get; set; }
+    public PropertyUnit? PropertyUnit { get; set; }
+    public int? PropertyRoomId { get; set; }
+    public PropertyRoom? PropertyRoom { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public RepairTicketStatus Status { get; set; } = RepairTicketStatus.Submitted;
+    public RepairTicketPriority Priority { get; set; } = RepairTicketPriority.Normal;
+    public int? CreatedByUserId { get; set; }
+    public AppUser? CreatedBy { get; set; }
+    public int? HandledByUserId { get; set; }
+    public AppUser? HandledBy { get; set; }
+    public DateTime? ResolvedAtUtc { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
+}
+
+public class RepairTicketComment
+{
+    public int Id { get; set; }
+    public int RepairTicketId { get; set; }
+    public RepairTicket? RepairTicket { get; set; }
+    public int? UserId { get; set; }
+    public AppUser? User { get; set; }
+    public string Content { get; set; } = string.Empty;
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
 public class Attachment

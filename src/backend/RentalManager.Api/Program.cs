@@ -28,6 +28,8 @@ builder.Services.AddScoped<MeterReadingService>();
 builder.Services.AddScoped<ReportService>();
 builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
 builder.Services.AddScoped<AttachmentService>();
+builder.Services.AddScoped<RepairTicketService>();
+builder.Services.AddScoped<PortalService>();
 
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "super-secret-key-change-me";
 var issuer = builder.Configuration["Jwt:Issuer"] ?? "RentalManager";

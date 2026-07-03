@@ -89,6 +89,7 @@ const navItems = [
   { to: '/admin/expenses', label: '支出費用' },
   { to: '/admin/electricity', label: '電費試算' },
   { to: '/admin/electricity-meter-readings', label: '電錶抄表' },
+  { to: '/admin/repairs', label: '報修管理' },
   { to: '/admin/users', label: '帳號管理' }
 ]
 

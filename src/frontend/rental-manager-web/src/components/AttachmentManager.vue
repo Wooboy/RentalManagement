@@ -4,7 +4,7 @@
       <h3 class="font-bold text-lg mb-1">附件管理</h3>
       <p v-if="subtitle" class="text-sm text-base-content/60 mb-3">{{ subtitle }}</p>
 
-      <div class="flex items-center gap-2 mb-3">
+      <div v-if="!readonly" class="flex items-center gap-2 mb-3">
         <input
           ref="fileInput"
           type="file"
@@ -40,7 +40,7 @@
             <td class="whitespace-nowrap">{{ a.createdAtUtc?.slice(0, 16).replace('T', ' ') }}</td>
             <td class="flex gap-1 justify-end">
               <button class="btn btn-xs" @click="download(a)">下載</button>
-              <button class="btn btn-xs btn-error" @click="remove(a.id)">刪除</button>
+              <button v-if="canDelete" class="btn btn-xs btn-error" @click="remove(a.id)">刪除</button>
             </td>
           </tr>
         </tbody>
@@ -67,12 +67,22 @@ type AttachmentItem = {
   createdAtUtc: string
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   /** 對應後端 AttachmentEntityType：1 合約、2 應收、3 支出、4 報修 */
   entityType: number
   entityId: number
   subtitle?: string
-}>()
+  /** API 路徑前綴：管理端 /attachments、房客端 /portal/attachments */
+  basePath?: string
+  /** true 時隱藏上傳 */
+  readonly?: boolean
+  /** false 時隱藏刪除（房客端不可刪除） */
+  canDelete?: boolean
+}>(), {
+  basePath: '/attachments',
+  readonly: false,
+  canDelete: true
+})
 
 const emit = defineEmits<{ close: [] }>()
 
@@ -92,7 +102,7 @@ const load = async () => {
   loading.value = true
   error.value = ''
   try {
-    const { data } = await api.get('/attachments', {
+    const { data } = await api.get(props.basePath, {
       params: { entityType: props.entityType, entityId: props.entityId }
     })
     items.value = data
@@ -116,7 +126,7 @@ const upload = async () => {
     formData.append('entityType', String(props.entityType))
     formData.append('entityId', String(props.entityId))
     formData.append('file', file)
-    await api.post('/attachments', formData)
+    await api.post(props.basePath, formData)
     if (fileInput.value) fileInput.value.value = ''
     await load()
   } catch (e: any) {
@@ -129,7 +139,7 @@ const upload = async () => {
 const download = async (a: AttachmentItem) => {
   error.value = ''
   try {
-    const { data } = await api.get(`/attachments/${a.id}/download`, { responseType: 'blob' })
+    const { data } = await api.get(`${props.basePath}/${a.id}/download`, { responseType: 'blob' })
     const url = URL.createObjectURL(data)
     const link = document.createElement('a')
     link.href = url
@@ -144,7 +154,7 @@ const download = async (a: AttachmentItem) => {
 const remove = async (id: number) => {
   error.value = ''
   try {
-    await api.delete(`/attachments/${id}`)
+    await api.delete(`${props.basePath}/${id}`)
     await load()
   } catch (e: any) {
     error.value = e?.response?.data || e?.message || '刪除失敗'

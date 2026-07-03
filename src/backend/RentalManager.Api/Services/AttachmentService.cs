@@ -97,6 +97,7 @@ public class AttachmentService(AppDbContext db, IFileStorage storage, IConfigura
             AttachmentEntityType.Contract => await db.Contracts.AnyAsync(x => x.Id == entityId),
             AttachmentEntityType.ChargeRecord => await db.ChargeRecords.AnyAsync(x => x.Id == entityId),
             AttachmentEntityType.ExpenseRecord => await db.ExpenseRecords.AnyAsync(x => x.Id == entityId),
+            AttachmentEntityType.RepairTicket => await db.RepairTickets.AnyAsync(x => x.Id == entityId),
             _ => false
         };
         if (!exists) throw new DomainValidationException("附件關聯的資料不存在");

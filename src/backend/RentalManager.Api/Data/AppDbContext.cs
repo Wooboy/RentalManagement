@@ -17,6 +17,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ElectricityAllocation> ElectricityAllocations => Set<ElectricityAllocation>();
     public DbSet<ElectricityMeterReading> ElectricityMeterReadings => Set<ElectricityMeterReading>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<RepairTicket> RepairTickets => Set<RepairTicket>();
+    public DbSet<RepairTicketComment> RepairTicketComments => Set<RepairTicketComment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -125,6 +127,45 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<ElectricityMeterReading>()
             .HasIndex(x => new { x.PropertyRoomId, x.ReadingDateUtc })
             .IsUnique();
+
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.Contract)
+            .WithMany()
+            .HasForeignKey(x => x.ContractId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.PropertyUnit)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyUnitId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.PropertyRoom)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyRoomId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.CreatedBy)
+            .WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.HandledBy)
+            .WithMany()
+            .HasForeignKey(x => x.HandledByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<RepairTicket>()
+            .HasIndex(x => x.Status);
+
+        modelBuilder.Entity<RepairTicketComment>()
+            .HasOne(x => x.RepairTicket)
+            .WithMany()
+            .HasForeignKey(x => x.RepairTicketId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RepairTicketComment>()
+            .HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<Attachment>()
             .HasIndex(x => new { x.EntityType, x.EntityId });

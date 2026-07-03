@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
       <StatCard title="本月收入" :value="formatMoney(report.income)" />
       <StatCard title="本月支出" :value="formatMoney(report.expense)" />
       <StatCard
@@ -22,6 +22,7 @@
       />
       <StatCard title="未收款" :value="formatMoney(unpaidTotal)" :desc="`${unpaidCharges.length} 筆待收`" value-class="text-warning" />
       <StatCard title="即將到期合約" :value="expiringContracts.length" desc="60 天內到期" value-class="text-info" />
+      <StatCard title="待處理報修" :value="pendingRepairs" desc="已送出 + 處理中" value-class="text-error" />
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -120,6 +121,7 @@ const report = ref({ income: 0, expense: 0, profit: 0 })
 const unpaidCharges = ref<UnpaidCharge[]>([])
 const unpaidTotal = ref(0)
 const expiringContracts = ref<ContractRow[]>([])
+const pendingRepairs = ref(0)
 const error = ref('')
 
 const chargeCategoryNames: Record<number, string> = { 1: '租金', 2: '水費', 3: '電費', 99: '其他' }
@@ -151,10 +153,15 @@ const loadExpiring = async () => {
     .sort((a: ContractRow, b: ContractRow) => a.endDateUtc.localeCompare(b.endDateUtc))
 }
 
+const loadRepairs = async () => {
+  const { data } = await api.get('/repair-tickets')
+  pendingRepairs.value = data.filter((t: any) => t.status === 1 || t.status === 2).length
+}
+
 const load = async () => {
   error.value = ''
   try {
-    await Promise.all([loadReport(), loadUnpaid(), loadExpiring()])
+    await Promise.all([loadReport(), loadUnpaid(), loadExpiring(), loadRepairs()])
   } catch (e: any) {
     error.value = e?.response?.data || e?.message || '載入儀表板資料失敗'
   }

@@ -12,7 +12,11 @@ import ExpensesView from '../views/ExpensesView.vue'
 import ElectricityView from '../views/ElectricityView.vue'
 import ElectricityMeterReadingsView from '../views/ElectricityMeterReadingsView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
+import RepairTicketsView from '../views/RepairTicketsView.vue'
 import PortalHomeView from '../views/portal/PortalHomeView.vue'
+import MyContractsView from '../views/portal/MyContractsView.vue'
+import MyChargesView from '../views/portal/MyChargesView.vue'
+import MyRepairsView from '../views/portal/MyRepairsView.vue'
 
 export const routes: RouteRecordRaw[] = [
   { path: '/login', component: LoginView },
@@ -29,6 +33,7 @@ export const routes: RouteRecordRaw[] = [
       { path: 'expenses', component: ExpensesView },
       { path: 'electricity', component: ElectricityView },
       { path: 'electricity-meter-readings', component: ElectricityMeterReadingsView },
+      { path: 'repairs', component: RepairTicketsView },
       { path: 'users', component: AdminUsersView }
     ]
   },
@@ -37,7 +42,10 @@ export const routes: RouteRecordRaw[] = [
     component: PortalLayout,
     meta: { requiresRole: 2 },
     children: [
-      { path: '', component: PortalHomeView }
+      { path: '', component: PortalHomeView },
+      { path: 'contracts', component: MyContractsView },
+      { path: 'charges', component: MyChargesView },
+      { path: 'repairs', component: MyRepairsView }
     ]
   },
   // 舊路徑轉址（保留書籤相容）
