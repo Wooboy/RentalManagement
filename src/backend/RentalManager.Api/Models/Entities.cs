@@ -9,6 +9,7 @@ public enum ElectricityAllocationTargetType { Tenant = 1, Landlord = 2 }
 public enum ChargeCategory { Rent = 1, Water = 2, Electricity = 3, Other = 99 }
 public enum ExpenseCategory { Water = 1, Electricity = 2, Gas = 3, Internet = 4, Television = 5, Management = 6, Parking = 7, Tax = 8, Repair = 9, Other = 99 }
 public enum ExpenseSplitStatus { Unsplit = 1, Split = 2, NoNeed = 3 }
+public enum AttachmentEntityType { Contract = 1, ChargeRecord = 2, ExpenseRecord = 3, RepairTicket = 4 }
 
 public class AppUser
 {
@@ -178,6 +179,21 @@ public class ElectricityAllocation
     public decimal PrivateAmount { get; set; }
     public decimal PublicAmount { get; set; }
     public decimal PayableAmount { get; set; }
+}
+
+public class Attachment
+{
+    public int Id { get; set; }
+    public AttachmentEntityType EntityType { get; set; }
+    public int EntityId { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public long FileSize { get; set; }
+    /// <summary>相對於儲存根目錄的檔案路徑。</summary>
+    public string StoragePath { get; set; } = string.Empty;
+    public int? UploadedByUserId { get; set; }
+    public AppUser? UploadedBy { get; set; }
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
 public class ElectricityMeterReading

@@ -16,6 +16,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ElectricityBill> ElectricityBills => Set<ElectricityBill>();
     public DbSet<ElectricityAllocation> ElectricityAllocations => Set<ElectricityAllocation>();
     public DbSet<ElectricityMeterReading> ElectricityMeterReadings => Set<ElectricityMeterReading>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -124,5 +125,13 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<ElectricityMeterReading>()
             .HasIndex(x => new { x.PropertyRoomId, x.ReadingDateUtc })
             .IsUnique();
+
+        modelBuilder.Entity<Attachment>()
+            .HasIndex(x => new { x.EntityType, x.EntityId });
+        modelBuilder.Entity<Attachment>()
+            .HasOne(x => x.UploadedBy)
+            .WithMany()
+            .HasForeignKey(x => x.UploadedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

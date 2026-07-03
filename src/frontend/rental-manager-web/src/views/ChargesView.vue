@@ -21,12 +21,21 @@
           <td>{{ c.contractName || c.contractNo || `#${c.contractId}` }}</td><td>{{ chargeCategoryText(c.category) }}</td><td>{{ c.amount }}</td><td>{{ c.occurredAtUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
           <td class="flex gap-2 justify-end">
             <button v-if="!c.isPaid" class="btn btn-sm btn-success" @click="markPaid(c)">收款</button>
+            <button class="btn btn-sm" @click="openAttachments(c)">附件</button>
             <button class="btn btn-sm" @click="edit(c)">編輯</button>
             <button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <AttachmentManager
+      v-if="attachmentTarget"
+      :entity-type="2"
+      :entity-id="attachmentTarget.id"
+      :subtitle="`應收：${attachmentTarget.contractName || attachmentTarget.contractNo || '#' + attachmentTarget.contractId}（${chargeCategoryText(attachmentTarget.category)}）`"
+      @close="attachmentTarget = null"
+    />
 
     <dialog class="modal" :class="{ 'modal-open': showModal }">
       <div class="modal-box max-w-4xl max-h-[85vh] overflow-y-auto">
@@ -59,6 +68,9 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+import AttachmentManager from '../components/AttachmentManager.vue'
+const attachmentTarget = ref<any>(null)
+const openAttachments = (c: any) => { attachmentTarget.value = c }
 const route = useRoute()
 const router = useRouter()
 const startDate = ref('2000-01-01')

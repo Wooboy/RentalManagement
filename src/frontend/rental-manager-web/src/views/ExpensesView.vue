@@ -31,10 +31,18 @@
           <td>{{ e.propertyUnitName || e.propertyUnitId }}</td>
           <td>{{ e.propertyRoomName || '-' }}</td>
           <td>{{ expenseCategoryText(e.category) }}</td><td>{{ splitStatusText(e.splitStatus) }}</td><td>{{ e.amount }}</td><td>{{ e.usageUnits ?? '-' }}</td><td>{{ e.occurredAtUtc?.slice(0,10) }}</td>
-          <td class="flex gap-2 justify-end"><button class="btn btn-sm" @click="edit(e)">編輯</button><button class="btn btn-sm btn-error" @click="remove(e.id)">刪除</button></td>
+          <td class="flex gap-2 justify-end"><button class="btn btn-sm" @click="openAttachments(e)">附件</button><button class="btn btn-sm" @click="edit(e)">編輯</button><button class="btn btn-sm btn-error" @click="remove(e.id)">刪除</button></td>
         </tr>
       </tbody>
     </table>
+
+    <AttachmentManager
+      v-if="attachmentTarget"
+      :entity-type="3"
+      :entity-id="attachmentTarget.id"
+      :subtitle="`支出：${attachmentTarget.propertyUnitName || attachmentTarget.propertyUnitId}（${expenseCategoryText(attachmentTarget.category)}）`"
+      @close="attachmentTarget = null"
+    />
 
     <dialog class="modal" :class="{ 'modal-open': showModal }">
       <div class="modal-box max-w-5xl max-h-[85vh] overflow-y-auto">
@@ -76,6 +84,9 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+import AttachmentManager from '../components/AttachmentManager.vue'
+const attachmentTarget = ref<any>(null)
+const openAttachments = (e: any) => { attachmentTarget.value = e }
 const route = useRoute()
 const router = useRouter()
 const searchStartDate = ref('2000-01-01')

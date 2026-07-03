@@ -33,7 +33,7 @@
         <tr v-for="c in items" :key="c.id">
           <td><input type="checkbox" class="checkbox checkbox-sm" :value="c.id" v-model="selectedContractIds" /></td>
           <td>{{ c.contractName }}</td><td>{{ c.tenant?.name }}</td><td>{{ c.propertyName }}</td><td>{{ c.startDateUtc?.slice(0,10) }}</td><td>{{ c.endDateUtc?.slice(0,10) }}</td><td>{{ c.monthlyRent }}</td><td>{{ paymentIntervalText(c.paymentIntervalMonths) }}</td><td>{{ c.periodPayableAmount }}</td><td>{{ c.notes || '-' }}</td>
-          <td class="flex gap-2 justify-end"><button class="btn btn-sm" @click="edit(c)">編輯</button><button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button></td>
+          <td class="flex gap-2 justify-end"><button class="btn btn-sm" @click="openAttachments(c)">附件</button><button class="btn btn-sm" @click="edit(c)">編輯</button><button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button></td>
         </tr>
       </tbody>
     </table>
@@ -87,6 +87,14 @@
       </div>
     </dialog>
 
+    <AttachmentManager
+      v-if="attachmentTarget"
+      :entity-type="1"
+      :entity-id="attachmentTarget.id"
+      :subtitle="`合約：${attachmentTarget.contractName || attachmentTarget.contractNo}`"
+      @close="attachmentTarget = null"
+    />
+
     <dialog class="modal" :class="{ 'modal-open': showChargeMonthModal }">
       <div class="modal-box max-w-md">
         <h3 class="font-bold text-lg mb-3">選擇建立應收月份</h3>
@@ -107,7 +115,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
+import AttachmentManager from '../components/AttachmentManager.vue'
 const items = ref<any[]>([])
+const attachmentTarget = ref<any>(null)
+const openAttachments = (c: any) => { attachmentTarget.value = c }
 const rooms = ref<any[]>([])
 const tenants = ref<any[]>([])
 const selectedRoomIds = ref<number[]>([])

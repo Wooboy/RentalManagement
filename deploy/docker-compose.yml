@@ -34,6 +34,7 @@ services:
       SeedData__ApplyOnStartup: ${SEED_ON_STARTUP:-true}
     volumes:
       - ./seed:/app/Seed:ro
+      - uploads_data:/app/App_Data/uploads
 
   web:
     build:
@@ -48,3 +49,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
