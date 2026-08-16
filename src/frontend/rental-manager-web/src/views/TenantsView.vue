@@ -1,27 +1,44 @@
 ﻿<template>
-  <div class="card bg-base-100 shadow p-4">
-    <h2 class="text-lg font-bold mb-2">租客管理</h2>
-    <div class="flex flex-wrap items-end gap-3 mb-3">
-      <label class="form-control min-w-64">
-        <span class="label-text mb-1">搜尋關鍵字</span>
-        <input v-model="keyword" class="input input-bordered" placeholder="姓名/電話" />
-      </label>
-      <button class="btn" @click="load">查詢</button>
-      <button class="btn btn-primary" @click="openCreateModal">新增</button>
-    </div>
+  <div>
+    <PageHeader title="租客名單" :subtitle="`共 ${items.length} 位租客`">
+      <template #actions>
+        <label class="input input-bordered input-sm flex items-center gap-2 w-56">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+          </svg>
+          <input v-model="keyword" class="grow" placeholder="姓名 / 電話" @keyup.enter="load" />
+        </label>
+        <button class="btn btn-sm btn-ghost" @click="load">查詢</button>
+        <button class="btn btn-sm btn-primary" @click="openCreateModal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          新增租客
+        </button>
+      </template>
+    </PageHeader>
 
-    <table class="table table-zebra">
-      <thead><tr><th>姓名</th><th>電話</th><th>生日</th><th>統編</th><th>備註</th><th></th></tr></thead>
-      <tbody>
-        <tr v-for="t in items" :key="t.id">
-          <td>{{ t.name }}</td><td>{{ t.phone }}</td><td>{{ t.birthdayUtc?.slice(0,10) || '-' }}</td><td>{{ t.taxId || '-' }}</td><td>{{ t.notes || '-' }}</td>
-          <td class="flex gap-2 justify-end">
-            <button class="btn btn-sm" @click="edit(t)">編輯</button>
-            <button class="btn btn-sm btn-error" @click="remove(t.id)">刪除</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead><tr><th>姓名</th><th>電話</th><th>生日</th><th>統編</th><th>備註</th><th class="text-right">操作</th></tr></thead>
+          <tbody>
+            <tr v-for="t in items" :key="t.id">
+              <td class="font-medium">{{ t.name }}</td><td>{{ t.phone || '-' }}</td><td>{{ t.birthdayUtc?.slice(0,10) || '-' }}</td><td>{{ t.taxId || '-' }}</td><td class="max-w-60 truncate text-base-content/70">{{ t.notes || '-' }}</td>
+              <td>
+                <div class="flex gap-1 justify-end">
+                  <button class="btn btn-xs btn-ghost" @click="edit(t)">編輯</button>
+                  <button class="btn btn-xs btn-ghost text-error" @click="remove(t.id)">刪除</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="items.length === 0">
+              <td colspan="6" class="text-center text-base-content/50 py-10">尚無租客資料，點右上角「新增租客」開始建立。</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <dialog class="modal" :class="{ 'modal-open': showModal }">
       <div class="modal-box max-w-5xl max-h-[85vh] overflow-y-auto">
@@ -60,6 +77,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import api from '../services/api'
+import PageHeader from '../components/PageHeader.vue'
 const items = ref<any[]>([])
 const keyword = ref('')
 const showModal = ref(false)

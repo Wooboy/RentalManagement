@@ -1,40 +1,64 @@
 ﻿<template>
-  <div class="card bg-base-100 shadow p-4">
-    <h2 class="text-lg font-bold mb-2">支出費用</h2>
-    <div class="flex flex-wrap items-end gap-3 mb-3">
-      <label class="form-control min-w-56"><span class="label-text mb-1">查詢起日</span><input v-model="searchStartDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
-      <label class="form-control min-w-56"><span class="label-text mb-1">查詢迄日</span><input v-model="searchEndDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
-      <label class="form-control min-w-44">
-        <span class="label-text mb-1">項目類別</span>
-        <select v-model.number="searchCategory" class="select select-bordered">
-          <option :value="0">全部</option>
-          <option v-for="option in expenseCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-        </select>
-      </label>
-      <label class="form-control min-w-44">
-        <span class="label-text mb-1">分帳狀態</span>
-        <select v-model.number="searchSplitStatus" class="select select-bordered">
-          <option :value="0">全部</option>
-          <option :value="1">未分帳</option>
-          <option :value="2">已分帳</option>
-          <option :value="3">無需分帳</option>
-        </select>
-      </label>
-      <button class="btn" @click="search">查詢</button>
-      <button class="btn btn-primary" @click="openCreateModal">新增</button>
+  <div class="space-y-4">
+    <PageHeader title="支出費用" :subtitle="`共 ${items.length} 筆`">
+      <template #actions>
+        <button class="btn btn-sm btn-primary" @click="openCreateModal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          新增支出
+        </button>
+      </template>
+    </PageHeader>
+
+    <div class="card bg-base-100 border border-base-300 shadow-sm p-3">
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="form-control"><span class="label-text mb-1">查詢起日</span><input v-model="searchStartDate" class="input input-bordered input-sm" type="date" max="2099-12-31" /></label>
+        <label class="form-control"><span class="label-text mb-1">查詢迄日</span><input v-model="searchEndDate" class="input input-bordered input-sm" type="date" max="2099-12-31" /></label>
+        <label class="form-control">
+          <span class="label-text mb-1">項目類別</span>
+          <select v-model.number="searchCategory" class="select select-bordered select-sm">
+            <option :value="0">全部</option>
+            <option v-for="option in expenseCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+          </select>
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">分帳狀態</span>
+          <select v-model.number="searchSplitStatus" class="select select-bordered select-sm">
+            <option :value="0">全部</option>
+            <option :value="1">未分帳</option>
+            <option :value="2">已分帳</option>
+            <option :value="3">無需分帳</option>
+          </select>
+        </label>
+        <button class="btn btn-sm btn-ghost" @click="search">查詢</button>
+      </div>
     </div>
 
-    <table class="table table-zebra">
-      <thead><tr><th>房源</th><th>房間</th><th>類別</th><th>分帳狀態</th><th>金額</th><th>度數</th><th>發生日</th><th></th></tr></thead>
-      <tbody>
-        <tr v-for="e in items" :key="e.id">
-          <td>{{ e.propertyUnitName || e.propertyUnitId }}</td>
-          <td>{{ e.propertyRoomName || '-' }}</td>
-          <td>{{ expenseCategoryText(e.category) }}</td><td>{{ splitStatusText(e.splitStatus) }}</td><td>{{ e.amount }}</td><td>{{ e.usageUnits ?? '-' }}</td><td>{{ e.occurredAtUtc?.slice(0,10) }}</td>
-          <td class="flex gap-2 justify-end"><button class="btn btn-sm" @click="openAttachments(e)">附件</button><button class="btn btn-sm" @click="edit(e)">編輯</button><button class="btn btn-sm btn-error" @click="remove(e.id)">刪除</button></td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead><tr><th>房源</th><th>房間</th><th>類別</th><th>分帳狀態</th><th class="text-right">金額</th><th class="text-right">度數</th><th>發生日</th><th class="text-right">操作</th></tr></thead>
+          <tbody>
+            <tr v-for="e in items" :key="e.id">
+              <td class="font-medium">{{ e.propertyUnitName || e.propertyUnitId }}</td>
+              <td>{{ e.propertyRoomName || '-' }}</td>
+              <td>{{ expenseCategoryText(e.category) }}</td>
+              <td>{{ splitStatusText(e.splitStatus) }}</td>
+              <td class="text-right tabular-nums">{{ Number(e.amount || 0).toLocaleString() }}</td>
+              <td class="text-right tabular-nums">{{ e.usageUnits ?? '-' }}</td>
+              <td>{{ e.occurredAtUtc?.slice(0,10) }}</td>
+              <td>
+                <div class="flex gap-1 justify-end">
+                  <button class="btn btn-xs btn-ghost" @click="openAttachments(e)">附件</button>
+                  <button class="btn btn-xs btn-ghost" @click="edit(e)">編輯</button>
+                  <button class="btn btn-xs btn-ghost text-error" @click="remove(e.id)">刪除</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="items.length === 0"><td colspan="8" class="text-center text-base-content/50 py-10">查無支出費用資料。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <AttachmentManager
       v-if="attachmentTarget"
@@ -85,6 +109,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import AttachmentManager from '../components/AttachmentManager.vue'
+import PageHeader from '../components/PageHeader.vue'
 const attachmentTarget = ref<any>(null)
 const openAttachments = (e: any) => { attachmentTarget.value = e }
 const route = useRoute()

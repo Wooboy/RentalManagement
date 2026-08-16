@@ -1,33 +1,37 @@
 <template>
-  <div class="space-y-4">
-    <div class="flex items-end justify-between flex-wrap gap-2">
-      <div>
-        <h2 class="text-xl font-bold">儀表板</h2>
-        <p class="text-sm text-base-content/60">{{ year }} 年 {{ month }} 月營運總覽</p>
-      </div>
-      <div class="join">
-        <button class="btn btn-sm join-item" @click="shiftMonth(-1)">‹ 上月</button>
-        <button class="btn btn-sm join-item" @click="resetMonth">本月</button>
-        <button class="btn btn-sm join-item" @click="shiftMonth(1)">下月 ›</button>
-      </div>
-    </div>
+  <div class="space-y-6">
+    <PageHeader title="儀表板" :subtitle="`${year} 年 ${month} 月營運總覽`">
+      <template #actions>
+        <div class="join">
+          <button class="btn btn-sm join-item" @click="shiftMonth(-1)">‹ 上月</button>
+          <button class="btn btn-sm join-item" @click="resetMonth">本月</button>
+          <button class="btn btn-sm join-item" @click="shiftMonth(1)">下月 ›</button>
+        </div>
+      </template>
+    </PageHeader>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-4">
-      <StatCard title="本月收入" :value="formatMoney(report.income)" />
-      <StatCard title="本月支出" :value="formatMoney(report.expense)" />
+      <StatCard title="本月收入" :value="formatMoney(report.income)" accent="success"
+        icon="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      <StatCard title="本月支出" :value="formatMoney(report.expense)" accent="neutral"
+        icon="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z" />
       <StatCard
         title="本月損益"
         :value="formatMoney(report.profit)"
         :value-class="report.profit >= 0 ? 'text-success' : 'text-error'"
-      />
-      <StatCard title="未收款" :value="formatMoney(unpaidTotal)" :desc="`${unpaidCharges.length} 筆待收`" value-class="text-warning" />
-      <StatCard title="即將到期合約" :value="expiringContracts.length" desc="60 天內到期" value-class="text-info" />
-      <StatCard title="待處理報修" :value="pendingRepairs" desc="已送出 + 處理中" value-class="text-error" />
+        :accent="report.profit >= 0 ? 'success' : 'error'"
+        icon="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+      <StatCard title="未收款" :value="formatMoney(unpaidTotal)" :desc="`${unpaidCharges.length} 筆待收`" value-class="text-warning" accent="warning"
+        icon="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+      <StatCard title="即將到期合約" :value="expiringContracts.length" desc="60 天內到期" value-class="text-info" accent="info"
+        icon="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      <StatCard title="待處理報修" :value="pendingRepairs" desc="已送出 + 處理中" value-class="text-error" accent="error"
+        icon="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085" />
     </div>
 
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-      <div class="card bg-base-100 shadow">
-        <div class="card-body p-4">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-5">
           <div class="flex items-center justify-between">
             <h3 class="card-title text-base">待收款項</h3>
             <RouterLink to="/admin/charges" class="btn btn-ghost btn-xs">查看全部 ›</RouterLink>
@@ -54,8 +58,8 @@
         </div>
       </div>
 
-      <div class="card bg-base-100 shadow">
-        <div class="card-body p-4">
+      <div class="card bg-base-100 border border-base-300 shadow-sm">
+        <div class="card-body p-5">
           <div class="flex items-center justify-between">
             <h3 class="card-title text-base">即將到期合約</h3>
             <RouterLink to="/admin/contracts" class="btn btn-ghost btn-xs">查看全部 ›</RouterLink>
@@ -95,6 +99,7 @@
 import { onMounted, ref } from 'vue'
 import api from '../services/api'
 import StatCard from '../components/StatCard.vue'
+import PageHeader from '../components/PageHeader.vue'
 
 type UnpaidCharge = {
   id: number

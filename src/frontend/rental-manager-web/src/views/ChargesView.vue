@@ -1,33 +1,53 @@
 ﻿<template>
-  <div class="card bg-base-100 shadow p-4">
-    <h2 class="text-lg font-bold mb-2">應收費用</h2>
-    <div class="flex flex-wrap items-end gap-3 mb-3">
-      <label class="form-control min-w-56"><span class="label-text mb-1">查詢起日</span><input v-model="startDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
-      <label class="form-control min-w-56"><span class="label-text mb-1">查詢迄日</span><input v-model="endDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
-      <label class="form-control min-w-40"><span class="label-text mb-1">項目類別</span><select v-model.number="categoryFilter" class="select select-bordered">
-        <option :value="0">全部</option><option v-for="option in chargeCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-      </select></label>
-      <label class="form-control min-w-40"><span class="label-text mb-1">收款狀態</span><select v-model="paidFilter" class="select select-bordered">
-        <option value="all">全部</option><option value="paid">已收</option><option value="unpaid">未收</option>
-      </select></label>
-      <button class="btn" @click="search">查詢</button>
-      <button class="btn btn-primary" @click="openCreateModal">新增</button>
+  <div class="space-y-4">
+    <PageHeader title="應收費用" :subtitle="`共 ${items.length} 筆`">
+      <template #actions>
+        <button class="btn btn-sm btn-primary" @click="openCreateModal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          新增應收
+        </button>
+      </template>
+    </PageHeader>
+
+    <div class="card bg-base-100 border border-base-300 shadow-sm p-3">
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="form-control"><span class="label-text mb-1">查詢起日</span><input v-model="startDate" class="input input-bordered input-sm" type="date" max="2099-12-31" /></label>
+        <label class="form-control"><span class="label-text mb-1">查詢迄日</span><input v-model="endDate" class="input input-bordered input-sm" type="date" max="2099-12-31" /></label>
+        <label class="form-control"><span class="label-text mb-1">項目類別</span><select v-model.number="categoryFilter" class="select select-bordered select-sm">
+          <option :value="0">全部</option><option v-for="option in chargeCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+        </select></label>
+        <label class="form-control"><span class="label-text mb-1">收款狀態</span><select v-model="paidFilter" class="select select-bordered select-sm">
+          <option value="all">全部</option><option value="paid">已收</option><option value="unpaid">未收</option>
+        </select></label>
+        <button class="btn btn-sm btn-ghost" @click="search">查詢</button>
+      </div>
     </div>
 
-    <table class="table table-zebra">
-      <thead><tr><th>合約</th><th>類別</th><th>金額</th><th>發生日期</th><th>狀態</th><th></th></tr></thead>
-      <tbody>
-        <tr v-for="c in items" :key="c.id">
-          <td>{{ c.contractName || c.contractNo || `#${c.contractId}` }}</td><td>{{ chargeCategoryText(c.category) }}</td><td>{{ c.amount }}</td><td>{{ c.occurredAtUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
-          <td class="flex gap-2 justify-end">
-            <button v-if="!c.isPaid" class="btn btn-sm btn-success" @click="markPaid(c)">收款</button>
-            <button class="btn btn-sm" @click="openAttachments(c)">附件</button>
-            <button class="btn btn-sm" @click="edit(c)">編輯</button>
-            <button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead><tr><th>合約</th><th>類別</th><th class="text-right">金額</th><th>發生日期</th><th>狀態</th><th class="text-right">操作</th></tr></thead>
+          <tbody>
+            <tr v-for="c in items" :key="c.id">
+              <td class="font-medium">{{ c.contractName || c.contractNo || `#${c.contractId}` }}</td>
+              <td>{{ chargeCategoryText(c.category) }}</td>
+              <td class="text-right tabular-nums">{{ Number(c.amount || 0).toLocaleString() }}</td>
+              <td>{{ c.occurredAtUtc?.slice(0,10) }}</td>
+              <td><span class="badge badge-sm" :class="c.isPaid ? 'badge-success badge-soft' : 'badge-ghost'">{{ c.isPaid ? '已收' : '未收' }}</span></td>
+              <td>
+                <div class="flex gap-1 justify-end">
+                  <button v-if="!c.isPaid" class="btn btn-xs btn-primary" @click="markPaid(c)">收款</button>
+                  <button class="btn btn-xs btn-ghost" @click="openAttachments(c)">附件</button>
+                  <button class="btn btn-xs btn-ghost" @click="edit(c)">編輯</button>
+                  <button class="btn btn-xs btn-ghost text-error" @click="remove(c.id)">刪除</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="items.length === 0"><td colspan="6" class="text-center text-base-content/50 py-10">查無應收費用資料。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <AttachmentManager
       v-if="attachmentTarget"
@@ -69,6 +89,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import AttachmentManager from '../components/AttachmentManager.vue'
+import PageHeader from '../components/PageHeader.vue'
 const attachmentTarget = ref<any>(null)
 const openAttachments = (c: any) => { attachmentTarget.value = c }
 const route = useRoute()
