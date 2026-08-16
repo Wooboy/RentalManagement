@@ -12,6 +12,12 @@ export default defineConfig({
     'import.meta.env.BUILD_TIME': JSON.stringify(buildTime)
   },
   server: {
+    // 專案位於網路磁碟機（Z:）時，Node 原生 fs.watch 不支援變更通知會拋 UNKNOWN watch 錯誤，
+    // 改用輪詢監看才能正常啟動與熱更新。
+    watch: {
+      usePolling: true,
+      interval: 300
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:5091',
