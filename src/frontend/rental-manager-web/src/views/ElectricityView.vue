@@ -1,8 +1,7 @@
 ﻿<template>
   <div class="space-y-4">
-    <div class="card bg-base-100 shadow p-4">
-      <h2 class="text-lg font-bold mb-3">電費計算</h2>
-
+    <PageHeader title="電費試算" subtitle="選擇帳單並試算分攤後，儲存並轉入應收" />
+    <div class="card bg-base-100 border border-base-300 shadow-sm p-4">
       <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
         <label class="form-control"><span class="label-text mb-1">1. 計算方式</span>
           <select v-model.number="calcMode" class="select select-bordered">
@@ -14,7 +13,7 @@
 
       <div class="overflow-x-auto mb-3">
         <p class="text-sm mb-2">2. 選擇電費帳單（{{ calcMode === 3 ? '可多選' : '僅可單選' }}）</p>
-        <table class="table table-zebra">
+        <table class="table">
           <thead><tr><th></th><th>發生日期</th><th>帳期</th><th>金額</th><th>度數</th><th>房源/房間</th></tr></thead>
           <tbody>
             <tr v-for="b in electricityExpenseBills" :key="b.id">
@@ -45,7 +44,7 @@
 
       <div class="overflow-x-auto">
         <p class="text-sm mb-2">3. 帳期內居住租客（依合約與抄表自動帶入）</p>
-        <table class="table table-zebra">
+        <table class="table">
           <thead><tr><th>分攤對象</th><th>租客/合約</th><th>房間</th><th>居住期間</th><th>入住天數</th><th>人數</th><th>天數×人數</th><th>起訖度數</th><th>用電度數</th><th>歸屬帳單</th></tr></thead>
           <tbody>
             <tr v-for="(a, idx) in allocations" :key="`${a.expenseBillId}-${a.contractId}-${idx}`">
@@ -96,7 +95,7 @@
       </div>
 
       <div v-if="result && allocations.length" class="overflow-x-auto mt-3">
-        <table class="table table-zebra">
+        <table class="table">
           <thead><tr><th>分攤對象</th><th>租客/合約</th><th>私電明細</th><th>公電明細</th><th>合計</th></tr></thead>
           <tbody>
             <tr v-for="(a, idx) in allocations" :key="`detail-${a.expenseBillId}-${a.contractId}-${idx}`">
@@ -116,6 +115,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
+import PageHeader from '../components/PageHeader.vue'
 
 const calcMode = ref(3)
 const selectedExpenseBillIds = ref<number[]>([])

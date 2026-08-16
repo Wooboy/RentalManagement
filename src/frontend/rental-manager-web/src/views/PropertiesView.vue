@@ -1,48 +1,73 @@
 ﻿<template>
-  <div class="space-y-4">
-    <div class="card bg-base-100 shadow p-4">
-      <h2 class="text-lg font-bold mb-2">房源管理</h2>
-      <div class="flex flex-wrap items-end gap-3 mb-3">
-        <label class="form-control min-w-72">
-          <span class="label-text mb-1">搜尋關鍵字</span>
-          <input v-model="keyword" class="input input-bordered" placeholder="名稱/地址" />
+  <div class="space-y-5">
+    <PageHeader title="房源管理" :subtitle="`共 ${properties.length} 個房源`">
+      <template #actions>
+        <label class="input input-bordered input-sm flex items-center gap-2 w-52">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+          <input v-model="keyword" class="grow" placeholder="名稱 / 地址" @keyup.enter="loadProperties" />
         </label>
-        <button class="btn" @click="loadProperties">查詢</button>
-        <button class="btn btn-primary" @click="openCreatePropertyModal">新增</button>
-      </div>
-      <table class="table table-zebra">
-        <thead><tr><th>名稱</th><th>地址</th><th></th></tr></thead>
-        <tbody>
-          <tr v-for="p in properties" :key="p.id" :class="selectedPropertyId===p.id ? 'bg-base-200' : ''">
-            <td>{{ p.name }}</td><td>{{ p.address }}</td>
-            <td class="flex gap-2 justify-end">
-              <button class="btn btn-sm" @click="selectProperty(p.id)">房間</button>
-              <button class="btn btn-sm" @click="editProperty(p)">編輯</button>
-              <button class="btn btn-sm btn-error" @click="removeProperty(p.id)">刪除</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+        <button class="btn btn-sm btn-ghost" @click="loadProperties">查詢</button>
+        <button class="btn btn-sm btn-primary" @click="openCreatePropertyModal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          新增房源
+        </button>
+      </template>
+    </PageHeader>
 
-    <div class="card bg-base-100 shadow p-4">
-      <h2 class="text-lg font-bold mb-2">房間管理</h2>
-      <div class="flex items-end gap-2 mb-3">
-        <p class="text-sm flex-1">目前房源：{{ currentPropertyLabel }}</p>
-        <button class="btn btn-primary" :disabled="!selectedPropertyId" @click="openCreateRoomModal">新增</button>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-base-300">
+          <h3 class="font-semibold text-sm">房源清單</h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>名稱</th><th>地址</th><th class="text-right">操作</th></tr></thead>
+            <tbody>
+              <tr v-for="p in properties" :key="p.id" class="cursor-pointer" :class="selectedPropertyId===p.id ? 'bg-emerald-500/10' : ''" @click="selectProperty(p.id)">
+                <td class="font-medium">{{ p.name }}</td><td class="text-base-content/70">{{ p.address || '-' }}</td>
+                <td>
+                  <div class="flex gap-1 justify-end" @click.stop>
+                    <button class="btn btn-xs btn-ghost" @click="selectProperty(p.id)">房間</button>
+                    <button class="btn btn-xs btn-ghost" @click="editProperty(p)">編輯</button>
+                    <button class="btn btn-xs btn-ghost text-error" @click="removeProperty(p.id)">刪除</button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="properties.length === 0"><td colspan="3" class="text-center text-base-content/50 py-10">尚無房源，點右上角「新增房源」。</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-      <table class="table table-zebra">
-        <thead><tr><th>房間名稱</th><th>備註</th><th></th></tr></thead>
-        <tbody>
-          <tr v-for="r in rooms" :key="r.id">
-            <td>{{ r.name }}</td><td>{{ r.notes }}</td>
-            <td class="flex gap-2 justify-end">
-              <button class="btn btn-sm" @click="editRoom(r)">編輯</button>
-              <button class="btn btn-sm btn-error" @click="removeRoom(r.id)">刪除</button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+
+      <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-base-300 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <h3 class="font-semibold text-sm">房間清單</h3>
+            <p class="text-xs text-base-content/50 truncate">目前房源：{{ currentPropertyLabel }}</p>
+          </div>
+          <button class="btn btn-sm btn-primary" :disabled="!selectedPropertyId" @click="openCreateRoomModal">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            新增房間
+          </button>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="table">
+            <thead><tr><th>房間名稱</th><th>備註</th><th class="text-right">操作</th></tr></thead>
+            <tbody>
+              <tr v-for="r in rooms" :key="r.id">
+                <td class="font-medium">{{ r.name }}</td><td class="text-base-content/70">{{ r.notes || '-' }}</td>
+                <td>
+                  <div class="flex gap-1 justify-end">
+                    <button class="btn btn-xs btn-ghost" @click="editRoom(r)">編輯</button>
+                    <button class="btn btn-xs btn-ghost text-error" @click="removeRoom(r.id)">刪除</button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="rooms.length === 0"><td colspan="3" class="text-center text-base-content/50 py-10">{{ selectedPropertyId ? '此房源尚無房間。' : '請先於左側選擇房源。' }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <dialog class="modal" :class="{ 'modal-open': showPropertyModal }">
@@ -77,6 +102,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
+import PageHeader from '../components/PageHeader.vue'
 
 const properties = ref<any[]>([])
 const rooms = ref<any[]>([])

@@ -1,57 +1,60 @@
 <template>
-  <div class="card bg-base-100 shadow p-4 space-y-3">
-    <h2 class="text-lg font-bold">電錶抄表</h2>
+  <div class="space-y-4">
+    <PageHeader title="電錶抄表" subtitle="輸入本次度數後逐列儲存">
+      <template #actions>
+        <label class="form-control">
+          <span class="label-text mb-1">房屋</span>
+          <select v-model.number="selectedPropertyUnitId" class="select select-bordered select-sm" @change="reload">
+            <option :value="0">全部房屋</option>
+            <option v-for="property in properties" :key="property.id" :value="property.id">{{ property.name }}</option>
+          </select>
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">本次抄表日期</span>
+          <input v-model="readingDate" type="date" max="2099-12-31" class="input input-bordered input-sm" />
+        </label>
+        <button class="btn btn-sm btn-ghost" @click="reload">重新整理</button>
+      </template>
+    </PageHeader>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-      <label class="form-control">
-        <span class="label-text mb-1">房屋</span>
-        <select v-model.number="selectedPropertyUnitId" class="select select-bordered" @change="reload">
-          <option :value="0">全部房屋</option>
-          <option v-for="property in properties" :key="property.id" :value="property.id">{{ property.name }}</option>
-        </select>
-      </label>
-      <label class="form-control">
-        <span class="label-text mb-1">本次抄表日期</span>
-        <input v-model="readingDate" type="date" max="2099-12-31" class="input input-bordered" />
-      </label>
-      <div class="form-control justify-end">
-        <button class="btn mt-6" @click="reload">重新整理</button>
+    <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>房屋</th>
+              <th>房間</th>
+              <th>最近抄表日</th>
+              <th class="text-right">最近抄表度數</th>
+              <th>本次抄表度數</th>
+              <th>備註</th>
+              <th class="text-right w-40">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.propertyRoomId">
+              <td>{{ row.propertyUnitName || row.propertyUnitId }}</td>
+              <td class="font-medium">{{ row.propertyRoomName }}</td>
+              <td class="tabular-nums">{{ row.lastReadingDateUtc ? row.lastReadingDateUtc.slice(0, 10) : '-' }}</td>
+              <td class="text-right tabular-nums">{{ row.lastReadingValue ?? '-' }}</td>
+              <td>
+                <input v-model.number="row.currentReadingValue" type="number" class="input input-bordered input-sm w-36 tabular-nums" />
+              </td>
+              <td>
+                <input v-model="row.notes" class="input input-bordered input-sm w-52" />
+              </td>
+              <td>
+                <div class="flex gap-1 justify-end">
+                  <button class="btn btn-xs btn-ghost" @click="openHistoryModal(row)">記錄</button>
+                  <button class="btn btn-xs btn-primary" @click="saveOne(row)">儲存</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="rows.length === 0"><td colspan="7" class="text-center text-base-content/50 py-10">請選擇房屋以載入抄表清單。</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
-
-    <table class="table table-zebra">
-      <thead>
-        <tr>
-          <th>房屋</th>
-          <th>房間</th>
-          <th>最近抄表日</th>
-          <th>最近抄表度數</th>
-          <th>本次抄表度數</th>
-          <th>備註</th>
-          <th class="w-40"></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.propertyRoomId">
-          <td>{{ row.propertyUnitName || row.propertyUnitId }}</td>
-          <td>{{ row.propertyRoomName }}</td>
-          <td>{{ row.lastReadingDateUtc ? row.lastReadingDateUtc.slice(0, 10) : '-' }}</td>
-          <td>{{ row.lastReadingValue ?? '-' }}</td>
-          <td>
-            <input v-model.number="row.currentReadingValue" type="number" class="input input-bordered input-sm w-36" />
-          </td>
-          <td>
-            <input v-model="row.notes" class="input input-bordered input-sm w-52" />
-          </td>
-          <td>
-            <div class="flex gap-2 justify-end">
-              <button class="btn btn-sm" @click="openHistoryModal(row)">記錄</button>
-              <button class="btn btn-sm btn-primary" @click="saveOne(row)">儲存</button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
 
     <dialog class="modal" :class="{ 'modal-open': showHistoryModal }">
       <div class="modal-box max-w-4xl">
@@ -68,7 +71,7 @@
         <div v-if="historyLoading" class="py-6 text-center opacity-70">載入中...</div>
         <template v-else>
           <div v-if="history.length === 0" class="py-6 text-center opacity-70">尚無抄錶記錄</div>
-          <table v-else class="table table-zebra">
+          <table v-else class="table">
             <thead>
               <tr>
                 <th>日期</th>
@@ -133,6 +136,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
+import PageHeader from '../components/PageHeader.vue'
 
 type LatestRow = {
   propertyUnitId: number

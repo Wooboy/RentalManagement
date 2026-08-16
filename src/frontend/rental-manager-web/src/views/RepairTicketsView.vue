@@ -1,54 +1,61 @@
 <template>
-  <div class="card bg-base-100 shadow p-4">
-    <h2 class="text-lg font-bold mb-2">報修管理</h2>
-    <div class="flex flex-wrap items-end gap-3 mb-3">
-      <label class="form-control min-w-40">
-        <span class="label-text mb-1">狀態</span>
-        <select v-model.number="statusFilter" class="select select-bordered" @change="load">
-          <option :value="0">全部</option>
-          <option :value="1">已送出</option>
-          <option :value="2">處理中</option>
-          <option :value="3">已解決</option>
-          <option :value="4">已結案</option>
-          <option :value="5">已取消</option>
-        </select>
-      </label>
-      <label class="form-control min-w-64">
-        <span class="label-text mb-1">關鍵字</span>
-        <input v-model="keyword" class="input input-bordered" placeholder="標題、合約、租客" @keyup.enter="load" />
-      </label>
-      <button class="btn" @click="load">查詢</button>
+  <div class="space-y-4">
+    <PageHeader title="報修管理" :subtitle="`共 ${items.length} 筆`" />
+
+    <div class="card bg-base-100 border border-base-300 shadow-sm p-3">
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="form-control">
+          <span class="label-text mb-1">狀態</span>
+          <select v-model.number="statusFilter" class="select select-bordered select-sm" @change="load">
+            <option :value="0">全部</option>
+            <option :value="1">已送出</option>
+            <option :value="2">處理中</option>
+            <option :value="3">已解決</option>
+            <option :value="4">已結案</option>
+            <option :value="5">已取消</option>
+          </select>
+        </label>
+        <label class="form-control w-64">
+          <span class="label-text mb-1">關鍵字</span>
+          <input v-model="keyword" class="input input-bordered input-sm" placeholder="標題、合約、租客" @keyup.enter="load" />
+        </label>
+        <button class="btn btn-sm btn-ghost" @click="load">查詢</button>
+      </div>
     </div>
 
-    <p v-if="error" class="text-error text-sm mb-2">{{ error }}</p>
-    <p v-if="!loading && items.length === 0" class="text-sm text-base-content/60 py-8 text-center">沒有符合條件的報修單</p>
+    <p v-if="error" class="text-error text-sm">{{ error }}</p>
 
-    <table v-if="items.length > 0" class="table table-zebra">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>標題</th>
-          <th>租客</th>
-          <th>房源/房間</th>
-          <th>優先度</th>
-          <th>狀態</th>
-          <th>建立時間</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="t in items" :key="t.id">
-          <td>{{ t.id }}</td>
-          <td class="max-w-52 truncate">{{ t.title }}</td>
-          <td>{{ t.tenantName || '-' }}</td>
-          <td>{{ t.propertyUnitName || '-' }}{{ t.propertyRoomName ? ` / ${t.propertyRoomName}` : '' }}</td>
-          <td><span class="badge badge-sm" :class="priorityBadge(t.priority)">{{ priorityText(t.priority) }}</span></td>
-          <td><span class="badge badge-sm" :class="statusBadge(t.status)">{{ statusText(t.status) }}</span></td>
-          <td class="whitespace-nowrap">{{ t.createdAtUtc?.slice(0, 16).replace('T', ' ') }}</td>
-          <td class="text-right"><button class="btn btn-sm" @click="openDetail(t.id)">處理</button></td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>標題</th>
+              <th>租客</th>
+              <th>房源/房間</th>
+              <th>優先度</th>
+              <th>狀態</th>
+              <th>建立時間</th>
+              <th class="text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="t in items" :key="t.id">
+              <td class="tabular-nums text-base-content/60">{{ t.id }}</td>
+              <td class="max-w-52 truncate font-medium">{{ t.title }}</td>
+              <td>{{ t.tenantName || '-' }}</td>
+              <td>{{ t.propertyUnitName || '-' }}{{ t.propertyRoomName ? ` / ${t.propertyRoomName}` : '' }}</td>
+              <td><span class="badge badge-sm" :class="priorityBadge(t.priority)">{{ priorityText(t.priority) }}</span></td>
+              <td><span class="badge badge-sm" :class="statusBadge(t.status)">{{ statusText(t.status) }}</span></td>
+              <td class="whitespace-nowrap tabular-nums">{{ t.createdAtUtc?.slice(0, 16).replace('T', ' ') }}</td>
+              <td class="text-right"><button class="btn btn-xs btn-ghost" @click="openDetail(t.id)">處理</button></td>
+            </tr>
+            <tr v-if="!loading && items.length === 0"><td colspan="8" class="text-center text-base-content/50 py-10">沒有符合條件的報修單。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <!-- 明細/處理 -->
     <dialog class="modal" :class="{ 'modal-open': !!detail }">
@@ -127,6 +134,7 @@
 import { onMounted, ref } from 'vue'
 import api from '../services/api'
 import AttachmentManager from '../components/AttachmentManager.vue'
+import PageHeader from '../components/PageHeader.vue'
 
 const items = ref<any[]>([])
 const statusFilter = ref(0)

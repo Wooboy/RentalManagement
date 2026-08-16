@@ -1,42 +1,60 @@
 ﻿<template>
-  <div class="card bg-base-100 shadow p-4">
-    <h2 class="text-lg font-bold mb-2">合約管理</h2>
-    <div class="flex gap-2 mb-3">
-      <label class="form-control">
-        <span class="label-text mb-1">搜尋關鍵字</span>
-        <input v-model="keyword" class="input input-bordered" placeholder="合約名稱、編號、房源" />
-      </label>
-      <label class="form-control">
-        <span class="label-text mb-1">狀態</span>
-        <select v-model="statusFilter" class="select select-bordered">
-          <option value="all">全部</option>
-          <option value="1">生效中</option>
-          <option value="3">已終止</option>
-        </select>
-      </label>
-      <button class="btn" @click="load">查詢</button>
-      <button class="btn btn-primary" @click="openCreateModal">新增</button>
+  <div class="space-y-4">
+    <PageHeader title="合約管理" :subtitle="`共 ${items.length} 份合約`">
+      <template #actions>
+        <button class="btn btn-sm btn-primary" @click="openCreateModal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          新增合約
+        </button>
+      </template>
+    </PageHeader>
+
+    <div class="card bg-base-100 border border-base-300 shadow-sm p-3">
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="form-control">
+          <span class="label-text mb-1">搜尋關鍵字</span>
+          <input v-model="keyword" class="input input-bordered input-sm w-56" placeholder="合約名稱、編號、房源" @keyup.enter="load" />
+        </label>
+        <label class="form-control">
+          <span class="label-text mb-1">狀態</span>
+          <select v-model="statusFilter" class="select select-bordered select-sm">
+            <option value="all">全部</option>
+            <option value="1">生效中</option>
+            <option value="3">已終止</option>
+          </select>
+        </label>
+        <button class="btn btn-sm btn-ghost" @click="load">查詢</button>
+        <div class="flex-1"></div>
+        <button class="btn btn-sm btn-secondary" :disabled="!selectedContractIds.length" @click="openChargeMonthModal">
+          建立本期應收<span v-if="selectedContractIds.length" class="ml-1">（{{ selectedContractIds.length }}）</span>
+        </button>
+      </div>
     </div>
 
-    <div class="flex gap-2 mb-3">
-      <button class="btn btn-sm" @click="selectAll">全選</button>
-      <button class="btn btn-sm" @click="clearSelection">清除全選</button>
-      <button class="btn btn-sm btn-secondary" :disabled="!selectedContractIds.length" @click="openChargeMonthModal">建立本期應收款項目</button>
+    <p v-if="error" class="text-error text-sm">{{ error }}</p>
+    <p v-if="notice" class="text-success text-sm">{{ notice }}</p>
+
+    <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead><tr><th><input type="checkbox" class="checkbox checkbox-sm" :checked="allVisibleSelected" @change="toggleAllVisible" /></th><th>合約名稱</th><th>租客</th><th>房源/房間</th><th>合約起日</th><th>合約迄日</th><th class="text-right">月租</th><th>付款間隔</th><th class="text-right">每期應付</th><th>備註</th><th class="text-right">操作</th></tr></thead>
+          <tbody>
+            <tr v-for="c in items" :key="c.id">
+              <td><input type="checkbox" class="checkbox checkbox-sm" :value="c.id" v-model="selectedContractIds" /></td>
+              <td class="font-medium">{{ c.contractName }}</td><td>{{ c.tenant?.name }}</td><td>{{ c.propertyName }}</td><td class="tabular-nums">{{ c.startDateUtc?.slice(0,10) }}</td><td class="tabular-nums">{{ c.endDateUtc?.slice(0,10) }}</td><td class="text-right tabular-nums">{{ Number(c.monthlyRent || 0).toLocaleString() }}</td><td>{{ paymentIntervalText(c.paymentIntervalMonths) }}</td><td class="text-right tabular-nums">{{ Number(c.periodPayableAmount || 0).toLocaleString() }}</td><td class="max-w-40 truncate text-base-content/70">{{ c.notes || '-' }}</td>
+              <td>
+                <div class="flex gap-1 justify-end">
+                  <button class="btn btn-xs btn-ghost" @click="openAttachments(c)">附件</button>
+                  <button class="btn btn-xs btn-ghost" @click="edit(c)">編輯</button>
+                  <button class="btn btn-xs btn-ghost text-error" @click="remove(c.id)">刪除</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="items.length === 0"><td colspan="11" class="text-center text-base-content/50 py-10">查無合約資料。</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-
-    <div class="text-error text-sm mb-3">{{ error }}</div>
-    <div class="text-success text-sm mb-3">{{ notice }}</div>
-
-    <table class="table table-zebra">
-      <thead><tr><th><input type="checkbox" class="checkbox checkbox-sm" :checked="allVisibleSelected" @change="toggleAllVisible" /></th><th>合約名稱</th><th>租客</th><th>房源/房間</th><th>合約起日</th><th>合約迄日</th><th>月租</th><th>付款間隔</th><th>每期應付</th><th>備註</th><th></th></tr></thead>
-      <tbody>
-        <tr v-for="c in items" :key="c.id">
-          <td><input type="checkbox" class="checkbox checkbox-sm" :value="c.id" v-model="selectedContractIds" /></td>
-          <td>{{ c.contractName }}</td><td>{{ c.tenant?.name }}</td><td>{{ c.propertyName }}</td><td>{{ c.startDateUtc?.slice(0,10) }}</td><td>{{ c.endDateUtc?.slice(0,10) }}</td><td>{{ c.monthlyRent }}</td><td>{{ paymentIntervalText(c.paymentIntervalMonths) }}</td><td>{{ c.periodPayableAmount }}</td><td>{{ c.notes || '-' }}</td>
-          <td class="flex gap-2 justify-end"><button class="btn btn-sm" @click="openAttachments(c)">附件</button><button class="btn btn-sm" @click="edit(c)">編輯</button><button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button></td>
-        </tr>
-      </tbody>
-    </table>
 
     <dialog class="modal" :class="{ 'modal-open': showModal }">
       <div class="modal-box max-w-5xl">
@@ -116,6 +134,7 @@
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
 import AttachmentManager from '../components/AttachmentManager.vue'
+import PageHeader from '../components/PageHeader.vue'
 const items = ref<any[]>([])
 const attachmentTarget = ref<any>(null)
 const openAttachments = (c: any) => { attachmentTarget.value = c }

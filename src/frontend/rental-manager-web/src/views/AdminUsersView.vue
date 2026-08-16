@@ -1,47 +1,59 @@
 <template>
-  <div class="card bg-base-100 shadow p-4">
-    <h2 class="text-lg font-bold mb-2">帳號管理</h2>
-    <div class="flex flex-wrap items-end gap-3 mb-3">
-      <label class="form-control min-w-64">
-        <span class="label-text mb-1">帳號關鍵字</span>
-        <input v-model="keyword" class="input input-bordered" placeholder="輸入帳號或名稱關鍵字" />
-      </label>
-      <button class="btn" @click="load">查詢</button>
-      <button class="btn btn-primary" @click="openCreateModal">新增</button>
-    </div>
+  <div class="space-y-4">
+    <PageHeader title="帳號管理" :subtitle="`共 ${items.length} 個帳號`">
+      <template #actions>
+        <label class="input input-bordered input-sm flex items-center gap-2 w-56">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+          <input v-model="keyword" class="grow" placeholder="帳號 / 名稱" @keyup.enter="load" />
+        </label>
+        <button class="btn btn-sm btn-ghost" @click="load">查詢</button>
+        <button class="btn btn-sm btn-primary" @click="openCreateModal">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          新增帳號
+        </button>
+      </template>
+    </PageHeader>
 
-    <p v-if="listError" class="text-error text-sm mb-2">{{ listError }}</p>
-    <table class="table table-zebra">
-      <thead>
-        <tr>
-          <th>帳號</th>
-          <th>名稱</th>
-          <th>角色</th>
-          <th>關聯租客</th>
-          <th>狀態</th>
-          <th>建立時間</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="u in items" :key="u.id">
-          <td>{{ u.username }}</td>
-          <td>{{ u.displayName || '-' }}</td>
-          <td>{{ u.role === 1 ? '管理員' : '租客' }}</td>
-          <td>{{ u.tenantName || '-' }}</td>
-          <td>
-            <span class="badge" :class="u.isActive ? 'badge-success' : 'badge-ghost'">
-              {{ u.isActive ? '啟用' : '停用' }}
-            </span>
-          </td>
-          <td>{{ formatUtc(u.createdAtUtc) }}</td>
-          <td class="flex gap-2 justify-end">
-            <button class="btn btn-sm" @click="edit(u)">編輯</button>
-            <button class="btn btn-sm btn-error" @click="remove(u.id)">刪除</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <p v-if="listError" class="text-error text-sm">{{ listError }}</p>
+
+    <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>帳號</th>
+              <th>名稱</th>
+              <th>角色</th>
+              <th>關聯租客</th>
+              <th>狀態</th>
+              <th>建立時間</th>
+              <th class="text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="u in items" :key="u.id">
+              <td class="font-medium">{{ u.username }}</td>
+              <td>{{ u.displayName || '-' }}</td>
+              <td><span class="badge badge-sm" :class="u.role === 1 ? 'badge-neutral badge-soft' : 'badge-ghost'">{{ u.role === 1 ? '管理員' : '租客' }}</span></td>
+              <td>{{ u.tenantName || '-' }}</td>
+              <td>
+                <span class="badge badge-sm" :class="u.isActive ? 'badge-success badge-soft' : 'badge-ghost'">
+                  {{ u.isActive ? '啟用' : '停用' }}
+                </span>
+              </td>
+              <td class="tabular-nums">{{ formatUtc(u.createdAtUtc) }}</td>
+              <td>
+                <div class="flex gap-1 justify-end">
+                  <button class="btn btn-xs btn-ghost" @click="edit(u)">編輯</button>
+                  <button class="btn btn-xs btn-ghost text-error" @click="remove(u.id)">刪除</button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="items.length === 0"><td colspan="7" class="text-center text-base-content/50 py-10">尚無帳號資料。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <dialog class="modal" :class="{ 'modal-open': showModal }">
       <div class="modal-box max-w-xl">
@@ -103,6 +115,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import api from '../services/api'
+import PageHeader from '../components/PageHeader.vue'
 
 type AppUser = {
   id: number
