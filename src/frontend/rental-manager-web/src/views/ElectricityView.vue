@@ -295,6 +295,8 @@ const calculate = async () => {
         privateAmountText: `${buildPrivateUsageLine(x)}\n${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
         publicAmountText: `${Number(x.occupancyDays || 0)}日 × ${Number(x.occupantCount || 0)}人 × ${averageDailyPrice}元 = ${publicPart}元`,
         totalText: `${privateAmounts[idx]} + ${publicPart} = ${payable}元`,
+        privateAmount: privateAmounts[idx],
+        publicAmount: publicPart,
         payableAmount: payable
       }
       return payable
@@ -326,6 +328,8 @@ const calculate = async () => {
         privateAmountText: `${buildPrivateUsageLine(x)}\n${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
         publicAmountText: '公電費：0元',
         totalText: `${privateAmounts[idx]} = ${payable}元`,
+        privateAmount: privateAmounts[idx],
+        publicAmount: 0,
         payableAmount: payable
       }
     })
@@ -337,6 +341,9 @@ const calculate = async () => {
 const saveBill = async () => {
   notice.value = ''
   error.value = validate()
+  if (error.value) return
+  // 先以目前分攤資料重新試算，確保送出的金額與畫面一致（試算＝應收同一口徑）
+  await calculate()
   if (error.value) return
   try {
     const primaryContractId = allocations.value.find((x:any) => Number(x.targetType) === 1 && x.contractId)?.contractId ?? null
@@ -359,7 +366,10 @@ const saveBill = async () => {
         meterEnd: x.meterEnd,
         tenantUnits: x.tenantUnits,
         occupantCount: x.occupantCount,
-        occupancyDays: x.occupancyDays
+        occupancyDays: x.occupancyDays,
+        privateAmount: x.calcDetail?.privateAmount ?? null,
+        publicAmount: x.calcDetail?.publicAmount ?? null,
+        payableAmount: x.calcDetail?.payableAmount ?? null
       }))
     })
     const billId = Number(data?.billId || 0)

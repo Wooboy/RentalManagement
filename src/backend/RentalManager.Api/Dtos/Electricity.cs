@@ -4,7 +4,7 @@ public record ElectricityExpensePreviewRequest(List<int> ExpenseBillIds);
 public record ElectricityTenantInput(decimal TenantUnits, int OccupantCount, int OccupancyDays);
 public record ElectricityCalculateRequest(int RuleType, decimal? UnitPrice, decimal? TenantUnits, decimal? BillAmount, decimal? TotalUnits, List<ElectricityTenantInput>? Tenants);
 public record ElectricityCalculateResponse(decimal UnitPrice, decimal PrivateElectricityAmount, decimal PublicElectricityAmount, decimal PayableAmount, List<decimal>? TenantPayables);
-public record ElectricityAllocationSaveInput(int TargetType, int? ContractId, int PropertyRoomId, int? TenantId, DateTime OccupancyStartUtc, DateTime OccupancyEndUtc, decimal? MeterStart, decimal? MeterEnd, decimal TenantUnits, int OccupantCount, int OccupancyDays);
+public record ElectricityAllocationSaveInput(int TargetType, int? ContractId, int PropertyRoomId, int? TenantId, DateTime OccupancyStartUtc, DateTime OccupancyEndUtc, decimal? MeterStart, decimal? MeterEnd, decimal TenantUnits, int OccupantCount, int OccupancyDays, decimal? PrivateAmount = null, decimal? PublicAmount = null, decimal? PayableAmount = null);
 public record ElectricityBillSaveRequest(int? ContractId, int RuleType, DateTime BillingStartUtc, DateTime BillingEndUtc, decimal TotalAmount, decimal TotalUnits, decimal UnitPrice, List<ElectricityAllocationSaveInput> Allocations);
 public record ElectricityCreateChargesRequest(List<int>? ExpenseBillIds);
 

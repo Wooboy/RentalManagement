@@ -251,9 +251,12 @@ public class ElectricityBillingService(AppDbContext db)
 
         var allocations = request.Allocations.Select(x =>
         {
-            var privateAmount = x.TenantUnits * unitPrice;
-            var publicAmount = x.OccupantCount * x.OccupancyDays * avgPublic;
-            var payable = privateAmount + publicAmount;
+            // 有帶前端試算金額時直接採用（試算與應收同一口徑，避免多帳單不同單價時的重算漂移）；
+            // 未帶則以合併單價回算，維持舊行為與相容性。
+            var clientProvided = x.PayableAmount.HasValue && x.PrivateAmount.HasValue && x.PublicAmount.HasValue;
+            var privateAmount = clientProvided ? x.PrivateAmount!.Value : x.TenantUnits * unitPrice;
+            var publicAmount = clientProvided ? x.PublicAmount!.Value : x.OccupantCount * x.OccupancyDays * avgPublic;
+            var payable = clientProvided ? x.PayableAmount!.Value : privateAmount + publicAmount;
             return new ElectricityAllocation
             {
                 ElectricityBillId = bill.Id,
@@ -274,7 +277,15 @@ public class ElectricityBillingService(AppDbContext db)
             };
         }).ToList();
 
-        bill.PayableTotalAmount = allocations.Sum(x => x.PayableAmount);
+        // 防呆：分攤 payable 合計需與帳單總額相符；容差涵蓋逐筆取整（每筆最多少 1 元）與四捨五入殘差。
+        var payableSum = allocations.Sum(x => x.PayableAmount);
+        var tolerance = allocations.Count + 2m;
+        if (Math.Abs(payableSum - request.TotalAmount) > tolerance)
+            throw new DomainValidationException($"分攤金額合計 {payableSum:0.##} 與帳單總額 {request.TotalAmount:0.##} 不符（差異超過容差 {tolerance:0.##}），請重新試算後再儲存");
+
+        bill.PrivateTotalAmount = allocations.Sum(x => x.PrivateAmount);
+        bill.PublicTotalAmount = allocations.Sum(x => x.PublicAmount);
+        bill.PayableTotalAmount = payableSum;
         db.ElectricityAllocations.AddRange(allocations);
         await db.SaveChangesAsync();
 
