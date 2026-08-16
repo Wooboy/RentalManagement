@@ -72,4 +72,19 @@ public class BillReadingSeriesTests
 
         Assert.Equal([1, 2], series.Select(x => x.Id));
     }
+
+    [Fact]
+    public void ReadingOnBillingEndDate_IsUsedAsEndBoundary()
+    {
+        // 每期於週期兩端各抄一次，抄表日剛好對齊帳期起訖日（起 06-02、迄 08-03）。
+        var readings = new List<ElectricityMeterReading>
+        {
+            Reading(1, "2026-06-02", 15384m),
+            Reading(2, "2026-08-03", 15679m)
+        };
+
+        var series = ElectricityBillingService.BuildBillReadingSeries(readings, DateTime.Parse("2026-06-02"), DateTime.Parse("2026-08-03"));
+
+        Assert.Equal([1, 2], series.Select(x => x.Id));
+    }
 }

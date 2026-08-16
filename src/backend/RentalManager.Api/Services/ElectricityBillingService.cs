@@ -474,7 +474,8 @@ public class ElectricityBillingService(AppDbContext db)
     }
 
     /// <summary>
-    /// 取出落在帳期內的抄表讀數序列，並補上帳期起訖的邊界讀數（起：帳期開始當日或之前最後一筆；訖：帳期結束後第一筆）。
+    /// 取出落在帳期內的抄表讀數序列，並補上帳期起訖的邊界讀數（起：帳期開始當日或之前最後一筆；訖：帳期結束當日或之後第一筆）。
+    /// 收尾讀數落在帳期迄日「當天」即視為有效邊界，對應「每期於週期兩端各抄一次、抄表日對齊帳期起訖」的常見用法。
     /// </summary>
     public static List<ElectricityMeterReading> BuildBillReadingSeries(List<ElectricityMeterReading> roomReadings, DateTime billingStartUtc, DateTime billingEndUtc)
     {
@@ -486,7 +487,7 @@ public class ElectricityBillingService(AppDbContext db)
         var startBoundary = ordered
             .LastOrDefault(x => x.ReadingDateUtc.Date <= billingStartUtc.Date);
         var endBoundary = ordered
-            .FirstOrDefault(x => x.ReadingDateUtc.Date > billingEndUtc.Date);
+            .FirstOrDefault(x => x.ReadingDateUtc.Date >= billingEndUtc.Date);
 
         if (startBoundary is null || endBoundary is null)
         {
