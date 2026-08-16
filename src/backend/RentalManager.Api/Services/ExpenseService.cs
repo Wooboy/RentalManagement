@@ -6,7 +6,7 @@ using RentalManager.Api.Models;
 
 namespace RentalManager.Api.Services;
 
-public class ExpenseService(AppDbContext db)
+public class ExpenseService(AppDbContext db, AttachmentService attachments)
 {
     public async Task<List<ExpenseListItemResponse>> GetAllAsync(DateTime? startDateUtc, DateTime? endDateUtc, ExpenseCategory? category, ExpenseSplitStatus? splitStatus)
     {
@@ -87,6 +87,7 @@ public class ExpenseService(AppDbContext db)
     public async Task DeleteAsync(int id)
     {
         var item = await db.ExpenseRecords.FindAsync(id) ?? throw new DomainNotFoundException();
+        await attachments.RemoveForEntitiesAsync(AttachmentEntityType.ExpenseRecord, [id]);
         db.ExpenseRecords.Remove(item);
         await db.SaveChangesAsync();
     }

@@ -112,6 +112,7 @@ type ContractRow = {
   contractName: string
   tenant?: { name?: string } | null
   endDateUtc: string
+  status: number
 }
 
 const now = new Date()
@@ -147,9 +148,15 @@ const loadUnpaid = async () => {
 
 const loadExpiring = async () => {
   const { data } = await api.get('/contracts', { params: { status: 1 } })
-  const limit = Date.now() + 60 * 86400000
+  const now = Date.now()
+  const limit = now + 60 * 86400000
+  // 只留下「仍生效（衍生狀態）且在 60 天內、尚未到期」的合約，排除已過期未手動更新者
   expiringContracts.value = data
-    .filter((c: ContractRow) => new Date(c.endDateUtc).getTime() <= limit)
+    .filter((c: ContractRow) => c.status === 1)
+    .filter((c: ContractRow) => {
+      const end = new Date(c.endDateUtc).getTime()
+      return end >= now && end <= limit
+    })
     .sort((a: ContractRow, b: ContractRow) => a.endDateUtc.localeCompare(b.endDateUtc))
 }
 

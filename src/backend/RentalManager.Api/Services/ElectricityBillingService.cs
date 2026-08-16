@@ -383,6 +383,7 @@ public class ElectricityBillingService(AppDbContext db)
         {
             var distinctContractIds = tenantAllocations.Select(x => x.ContractId!.Value).Distinct().ToList();
             if (distinctContractIds.Count != 1) throw new DomainValidationException("跨多份合約的帳單不可使用合併轉入");
+            // 只計租客分攤，排除房東自付（landlord）分攤，與分攤轉入口徑一致
             var charge = new ChargeRecord
             {
                 ContractId = distinctContractIds[0],
@@ -390,8 +391,8 @@ public class ElectricityBillingService(AppDbContext db)
                 OccurredAtUtc = occurredAtUtc,
                 BillingStartUtc = bill.BillingStartUtc,
                 BillingEndUtc = bill.BillingEndUtc,
-                UsageUnits = bill.TotalUnits,
-                Amount = ElectricityCalculationService.TruncateToInteger(bill.PayableTotalAmount),
+                UsageUnits = tenantAllocations.Sum(x => x.TenantUnits),
+                Amount = ElectricityCalculationService.TruncateToInteger(tenantAllocations.Sum(x => x.PayableAmount)),
                 Notes = $"電費帳單#{billId} 合併轉入",
                 IsPaid = false,
                 CreatedAtUtc = DateTime.UtcNow

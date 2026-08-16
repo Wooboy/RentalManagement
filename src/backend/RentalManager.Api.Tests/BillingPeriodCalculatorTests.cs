@@ -47,6 +47,29 @@ public class BillingPeriodCalculatorTests
     }
 
     [Fact]
+    public void Quarterly_MidQuarterMonth_AlignsToPeriodBoundary()
+    {
+        var contract = MakeContract("2026-01-01", 3);
+
+        // 選第二個月（2 月）應仍落在同一季 1/1~3/31，而非偏移出重疊的 2/1~4/30
+        var (start, end) = BillingPeriodCalculator.ResolveBillingPeriodForMonth(contract, new DateTime(2026, 2, 10));
+
+        Assert.Equal(new DateTime(2026, 1, 1), start);
+        Assert.Equal(new DateTime(2026, 3, 31), end);
+    }
+
+    [Fact]
+    public void Quarterly_SecondQuarterMonth_ShiftsToNextPeriod()
+    {
+        var contract = MakeContract("2026-01-01", 3);
+
+        var (start, end) = BillingPeriodCalculator.ResolveBillingPeriodForMonth(contract, new DateTime(2026, 5, 1));
+
+        Assert.Equal(new DateTime(2026, 4, 1), start);
+        Assert.Equal(new DateTime(2026, 6, 30), end);
+    }
+
+    [Fact]
     public void StartDay31_FallsBackToMonthEnd()
     {
         var contract = MakeContract("2026-01-31", 1);

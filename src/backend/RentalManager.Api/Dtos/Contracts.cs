@@ -62,10 +62,19 @@ public record ContractResponse(
         c.Tenant is null ? null : TenantResponse.From(c.Tenant),
         c.PropertyUnitId, c.PropertyName, c.PropertyAddress,
         c.StartDateUtc, c.EndDateUtc, c.MonthlyRent, c.PaymentIntervalMonths, c.PeriodPayableAmount,
-        c.Deposit, c.OccupantCount, c.Notes, c.ElectricityRuleType, c.Status,
+        c.Deposit, c.OccupantCount, c.Notes, c.ElectricityRuleType, ResolveEffectiveStatus(c),
         c.CreatedAtUtc, c.UpdatedAtUtc,
         rooms?.Select(r => r.PropertyRoomId).ToList() ?? [],
         rooms ?? []);
+
+    /// <summary>
+    /// 衍生有效狀態：生效中但已過合約結束日者呈現為「已到期」；
+    /// 已終止（Terminated）維持不變。系統沒有背景排程，狀態於讀取時即時判定。
+    /// </summary>
+    private static ContractStatus ResolveEffectiveStatus(Contract c)
+        => c.Status == ContractStatus.Active && c.EndDateUtc.Date < DateTime.UtcNow.Date
+            ? ContractStatus.Expired
+            : c.Status;
 }
 
 public record ContractBatchChargeCreatedItem(int Id, string ContractNo, DateTime BillingStartUtc, DateTime BillingEndUtc, decimal Amount);

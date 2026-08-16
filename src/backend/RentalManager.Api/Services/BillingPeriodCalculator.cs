@@ -12,9 +12,13 @@ public static class BillingPeriodCalculator
         var intervalMonths = contract.PaymentIntervalMonths <= 0 ? 1 : contract.PaymentIntervalMonths;
         var monthDiff = ((normalizedTargetMonth.Year - startDate.Year) * 12) + normalizedTargetMonth.Month - startDate.Month;
 
-        // Always use the selected month and keep the day anchored to the contract start day,
-        // falling back to the month's last day when needed.
-        var periodStart = startDate.AddMonths(monthDiff);
+        // 將目標月對齊付款間隔的邊界，避免季繳/年繳在非整期月份被選到時產生偏移一個月的重疊帳期。
+        // 例：合約 1/1 起、季繳，選 2 月時 monthDiff=1，對齊後仍落在 1/1~3/31 這一期。
+        if (monthDiff < 0) monthDiff = 0;
+        var alignedMonthDiff = monthDiff - (monthDiff % intervalMonths);
+
+        // 期初鎖定合約起租日，往後推整數個付款間隔。
+        var periodStart = startDate.AddMonths(alignedMonthDiff);
         var periodEnd = periodStart.AddMonths(intervalMonths).AddDays(-1);
         return (periodStart, periodEnd);
     }

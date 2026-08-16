@@ -90,6 +90,27 @@ public class AttachmentService(AppDbContext db, IFileStorage storage, IConfigura
         => await db.Attachments.FirstOrDefaultAsync(x => x.Id == id)
             ?? throw new DomainNotFoundException("附件不存在");
 
+    /// <summary>
+    /// 刪除某類實體一批 Id 的所有附件（實體檔 + 資料列）。
+    /// 附件為多型關聯、無 FK cascade，故實體被刪除時需由呼叫端主動清理，避免孤兒檔案。
+    /// 不呼叫 SaveChanges，交由呼叫端在同一交易一併儲存。
+    /// </summary>
+    public async Task RemoveForEntitiesAsync(AttachmentEntityType entityType, IReadOnlyCollection<int> entityIds)
+    {
+        if (entityIds.Count == 0) return;
+
+        var attachments = await db.Attachments
+            .Where(x => x.EntityType == entityType && entityIds.Contains(x.EntityId))
+            .ToListAsync();
+        if (attachments.Count == 0) return;
+
+        foreach (var attachment in attachments)
+        {
+            storage.Delete(attachment.StoragePath);
+        }
+        db.Attachments.RemoveRange(attachments);
+    }
+
     private async Task EnsureEntityExistsAsync(AttachmentEntityType entityType, int entityId)
     {
         var exists = entityType switch

@@ -6,7 +6,7 @@ using RentalManager.Api.Models;
 
 namespace RentalManager.Api.Services;
 
-public class ContractService(AppDbContext db)
+public class ContractService(AppDbContext db, AttachmentService attachments)
 {
     public async Task<List<ContractResponse>> GetAllAsync(string? keyword, int? propertyUnitId, int? propertyRoomId, int? status)
     {
@@ -116,6 +116,15 @@ public class ContractService(AppDbContext db)
     public async Task DeleteAsync(int id)
     {
         var item = await db.Contracts.FindAsync(id) ?? throw new DomainNotFoundException();
+
+        // 合約刪除會 cascade 掉其應收與報修單，但這些實體的多型附件（無 FK cascade）
+        // 不會被自動清除，需先連同實體檔一併移除，避免孤兒檔案。
+        var chargeIds = await db.ChargeRecords.Where(x => x.ContractId == id).Select(x => x.Id).ToListAsync();
+        var repairTicketIds = await db.RepairTickets.Where(x => x.ContractId == id).Select(x => x.Id).ToListAsync();
+        await attachments.RemoveForEntitiesAsync(AttachmentEntityType.Contract, [id]);
+        await attachments.RemoveForEntitiesAsync(AttachmentEntityType.ChargeRecord, chargeIds);
+        await attachments.RemoveForEntitiesAsync(AttachmentEntityType.RepairTicket, repairTicketIds);
+
         db.Contracts.Remove(item);
         await db.SaveChangesAsync();
     }
