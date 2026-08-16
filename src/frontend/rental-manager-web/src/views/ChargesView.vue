@@ -4,6 +4,9 @@
     <div class="flex flex-wrap items-end gap-3 mb-3">
       <label class="form-control min-w-56"><span class="label-text mb-1">查詢起日</span><input v-model="startDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
       <label class="form-control min-w-56"><span class="label-text mb-1">查詢迄日</span><input v-model="endDate" class="input input-bordered" type="date" max="2099-12-31" /></label>
+      <label class="form-control min-w-40"><span class="label-text mb-1">項目類別</span><select v-model.number="categoryFilter" class="select select-bordered">
+        <option :value="0">全部</option><option v-for="option in chargeCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+      </select></label>
       <label class="form-control min-w-40"><span class="label-text mb-1">收款狀態</span><select v-model="paidFilter" class="select select-bordered">
         <option value="all">全部</option><option value="paid">已收</option><option value="unpaid">未收</option>
       </select></label>
@@ -15,8 +18,10 @@
       <thead><tr><th>合約</th><th>類別</th><th>金額</th><th>發生日期</th><th>狀態</th><th></th></tr></thead>
       <tbody>
         <tr v-for="c in items" :key="c.id">
-          <td>{{ c.contractId }}</td><td>{{ c.category }}</td><td>{{ c.amount }}</td><td>{{ c.billingStartUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
+          <td>{{ c.contractName || c.contractNo || `#${c.contractId}` }}</td><td>{{ chargeCategoryText(c.category) }}</td><td>{{ c.amount }}</td><td>{{ c.occurredAtUtc?.slice(0,10) }}</td><td>{{ c.isPaid ? '已收' : '未收' }}</td>
           <td class="flex gap-2 justify-end">
+            <button v-if="!c.isPaid" class="btn btn-sm btn-success" @click="markPaid(c)">收款</button>
+            <button class="btn btn-sm" @click="openAttachments(c)">附件</button>
             <button class="btn btn-sm" @click="edit(c)">編輯</button>
             <button class="btn btn-sm btn-error" @click="remove(c.id)">刪除</button>
           </td>
@@ -24,16 +29,24 @@
       </tbody>
     </table>
 
+    <AttachmentManager
+      v-if="attachmentTarget"
+      :entity-type="2"
+      :entity-id="attachmentTarget.id"
+      :subtitle="`應收：${attachmentTarget.contractName || attachmentTarget.contractNo || '#' + attachmentTarget.contractId}（${chargeCategoryText(attachmentTarget.category)}）`"
+      @close="attachmentTarget = null"
+    />
+
     <dialog class="modal" :class="{ 'modal-open': showModal }">
       <div class="modal-box max-w-4xl max-h-[85vh] overflow-y-auto">
         <h3 class="font-bold text-lg mb-3">{{ form.id ? '編輯應收' : '新增應收' }}</h3>
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
           <label class="form-control"><span class="label-text mb-1">合約 *</span><select v-model.number="form.contractId" class="select select-bordered">
             <option :value="0">選擇合約 *</option>
-            <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.propertyName }}</option>
+            <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.contractName || c.propertyName || `#${c.id}` }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">類別</span><select v-model.number="form.category" class="select select-bordered">
-            <option :value="1">租金</option><option :value="2">水費</option><option :value="3">電費</option><option :value="99">其他</option>
+            <option v-for="option in chargeCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">金額 *</span><input v-model.number="form.amount" type="number" class="input input-bordered" /></label>
           <label class="form-control"><span class="label-text mb-1">發生日期</span><input v-model="form.occurredDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
@@ -55,21 +68,33 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+import AttachmentManager from '../components/AttachmentManager.vue'
+const attachmentTarget = ref<any>(null)
+const openAttachments = (c: any) => { attachmentTarget.value = c }
 const route = useRoute()
 const router = useRouter()
 const startDate = ref('2000-01-01')
 const endDate = ref('2099-12-31')
-const paidFilter = ref<'all'|'paid'|'unpaid'>('all')
+const categoryFilter = ref(0)
+const paidFilter = ref<'all'|'paid'|'unpaid'>('unpaid')
 const items = ref<any[]>([])
 const contracts = ref<any[]>([])
 const error = ref('')
 const showModal = ref(false)
+const chargeCategoryOptions = [
+  { value: 1, label: '租金' },
+  { value: 2, label: '水費' },
+  { value: 3, label: '電費' },
+  { value: 99, label: '其他' }
+]
 const toDateInput = (v: string) => (v ? v.slice(0,10) : '')
 const toIsoDate = (v: string) => new Date(`${v}T00:00:00Z`).toISOString()
 const seed = ()=>({ id:0, contractId:0, category:1, occurredDate:toDateInput(new Date().toISOString()), amount:0, notes:'', isPaid:0 })
+const chargeCategoryText = (v:number) => chargeCategoryOptions.find(option => option.value === Number(v))?.label ?? String(v)
 const form = ref<any>(seed())
 const load = async()=>{
   const params:any = { startDateUtc: toIsoDate(startDate.value), endDateUtc: toIsoDate(endDate.value) }
+  if (categoryFilter.value > 0) params.category = categoryFilter.value
   if (paidFilter.value === 'paid') params.isPaid = true
   if (paidFilter.value === 'unpaid') params.isPaid = false
   const {data}=await api.get('/charges',{params})
@@ -79,20 +104,25 @@ const loadContracts = async()=>{ const {data}=await api.get('/contracts'); contr
 const applyQueryFilter = () => {
   const qStart = String(route.query.startDate ?? '')
   const qEnd = String(route.query.endDate ?? '')
+  const qCategory = Number(route.query.category ?? 0)
   const qPaid = String(route.query.paid ?? '')
   if (qStart) startDate.value = qStart
   if (qEnd) endDate.value = qEnd
+  if (chargeCategoryOptions.some(option => option.value === qCategory)) categoryFilter.value = qCategory
   if (qPaid === 'paid' || qPaid === 'unpaid' || qPaid === 'all') paidFilter.value = qPaid
 }
 onMounted(async()=>{ applyQueryFilter(); await Promise.all([load(),loadContracts()]) })
-const search = async()=>{ await router.replace({ query: { startDate: startDate.value, endDate: endDate.value, paid: paidFilter.value } }); await load() }
+const search = async()=>{
+  await router.replace({ query: { startDate: startDate.value, endDate: endDate.value, category: categoryFilter.value > 0 ? String(categoryFilter.value) : undefined, paid: paidFilter.value } })
+  await load()
+}
 const reset = ()=>{ form.value=seed(); error.value='' }
 const openCreateModal = ()=>{ reset(); showModal.value = true }
 const closeModal = ()=>{ showModal.value = false; reset() }
 const edit = (c:any)=>{
   form.value={
     id:c.id, contractId:c.contractId, category:c.category, amount:c.amount, notes:c.notes ?? '',
-    occurredDate:toDateInput(c.billingStartUtc),
+    occurredDate:toDateInput(c.occurredAtUtc || c.billingStartUtc),
     isPaid:c.isPaid ? 1 : 0
   }
   error.value=''; showModal.value = true
@@ -106,6 +136,7 @@ const save = async()=>{
     id: form.value.id || 0,
     contractId: form.value.contractId,
     category: form.value.category,
+    occurredAtUtc: occurredIso,
     billingStartUtc: occurredIso,
     billingEndUtc: occurredIso,
     amount: form.value.amount,
@@ -115,6 +146,16 @@ const save = async()=>{
   }
   if(form.value.id) await api.put(`/charges/${form.value.id}`,payload); else await api.post('/charges',payload)
   closeModal(); await load()
+}
+const markPaid = async(c:any)=>{
+  error.value = ''
+  const payload = {
+    ...c,
+    isPaid: true,
+    paidAtUtc: new Date().toISOString()
+  }
+  await api.put(`/charges/${c.id}`, payload)
+  await load()
 }
 const remove = async(id:number)=>{ await api.delete(`/charges/${id}`); await load() }
 </script>

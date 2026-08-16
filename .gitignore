@@ -18,3 +18,18 @@ Thumbs.db
 
 *.db-wal
 *.db-shm
+
+tmp/
+
+# 部署 build 產物與執行期資料（build/ 內的設定檔仍為追蹤來源）
+/build/api/
+/build/web/
+/build/seed/
+/build/data/
+/build/.env
+
+src/backend/RentalManager.Api/appsettings.Development.json
+src/backend/RentalManager.Api/Seed/seed-template.json
+
+# Uploaded attachments (local dev)
+App_Data/

@@ -5,7 +5,7 @@ namespace RentalManager.Api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
+    public DbSet<AppUser> Users => Set<AppUser>();
     public DbSet<PropertyUnit> PropertyUnits => Set<PropertyUnit>();
     public DbSet<PropertyRoom> PropertyRooms => Set<PropertyRoom>();
     public DbSet<ContractRoom> ContractRooms => Set<ContractRoom>();
@@ -15,6 +15,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ExpenseRecord> ExpenseRecords => Set<ExpenseRecord>();
     public DbSet<ElectricityBill> ElectricityBills => Set<ElectricityBill>();
     public DbSet<ElectricityAllocation> ElectricityAllocations => Set<ElectricityAllocation>();
+    public DbSet<ElectricityMeterReading> ElectricityMeterReadings => Set<ElectricityMeterReading>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<RepairTicket> RepairTickets => Set<RepairTicket>();
+    public DbSet<RepairTicketComment> RepairTicketComments => Set<RepairTicketComment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -60,11 +64,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasForeignKey(x => x.PropertyRoomId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        modelBuilder.Entity<AdminUser>().HasData(new AdminUser
+        modelBuilder.Entity<AppUser>()
+            .HasIndex(x => x.Username)
+            .IsUnique();
+        modelBuilder.Entity<AppUser>()
+            .HasOne(x => x.Tenant)
+            .WithMany()
+            .HasForeignKey(x => x.TenantId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<AppUser>().HasData(new AppUser
         {
             Id = 1,
             Username = "admin",
             Role = UserRoleType.Admin,
+            IsActive = true,
             CreatedAtUtc = new DateTime(2026, 5, 24, 4, 11, 21, 638, DateTimeKind.Utc).AddTicks(8194),
             PasswordHash = "$2a$11$HlDgIuiyVxHd356KWpNR4OtSocmp5RQNYprtQXuKFl6jBlbaRkq3a"
         });
@@ -73,7 +86,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasOne(x => x.Contract)
             .WithMany()
             .HasForeignKey(x => x.ContractId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.SetNull);
 
         modelBuilder.Entity<ElectricityAllocation>()
             .HasOne(x => x.ElectricityBill)
@@ -82,9 +95,84 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<ElectricityAllocation>()
+            .HasOne(x => x.Contract)
+            .WithMany()
+            .HasForeignKey(x => x.ContractId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ElectricityAllocation>()
+            .HasOne(x => x.PropertyRoom)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyRoomId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ElectricityAllocation>()
             .HasOne(x => x.Tenant)
             .WithMany()
             .HasForeignKey(x => x.TenantId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ElectricityMeterReading>()
+            .HasOne(x => x.PropertyUnit)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyUnitId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ElectricityMeterReading>()
+            .HasOne(x => x.PropertyRoom)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyRoomId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ElectricityMeterReading>()
+            .HasIndex(x => new { x.PropertyRoomId, x.ReadingDateUtc })
+            .IsUnique();
+
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.Contract)
+            .WithMany()
+            .HasForeignKey(x => x.ContractId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.PropertyUnit)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyUnitId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.PropertyRoom)
+            .WithMany()
+            .HasForeignKey(x => x.PropertyRoomId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.CreatedBy)
+            .WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<RepairTicket>()
+            .HasOne(x => x.HandledBy)
+            .WithMany()
+            .HasForeignKey(x => x.HandledByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+        modelBuilder.Entity<RepairTicket>()
+            .HasIndex(x => x.Status);
+
+        modelBuilder.Entity<RepairTicketComment>()
+            .HasOne(x => x.RepairTicket)
+            .WithMany()
+            .HasForeignKey(x => x.RepairTicketId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<RepairTicketComment>()
+            .HasOne(x => x.User)
+            .WithMany()
+            .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<Attachment>()
+            .HasIndex(x => new { x.EntityType, x.EntityId });
+        modelBuilder.Entity<Attachment>()
+            .HasOne(x => x.UploadedBy)
+            .WithMany()
+            .HasForeignKey(x => x.UploadedByUserId)
             .OnDelete(DeleteBehavior.SetNull);
     }
 }

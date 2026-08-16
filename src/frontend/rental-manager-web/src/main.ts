@@ -1,9 +1,14 @@
-﻿import { createApp } from 'vue'
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import './style.css'
 import { applyAuthGuard, routes } from './router'
 
 const router = createRouter({ history: createWebHistory(), routes })
+const app = createApp(App)
+
+app.use(createPinia())
 applyAuthGuard(router)
-createApp(App).use(router).mount('#app')
+app.use(router)
+app.mount('#app')

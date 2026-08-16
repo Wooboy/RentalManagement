@@ -7,24 +7,19 @@
         <label class="form-control"><span class="label-text mb-1">1. 計算方式</span>
           <select v-model.number="calcMode" class="select select-bordered">
             <option :value="1">依度數計算</option>
-            <option :value="2">平均計算</option>
             <option :value="3">多錶計算</option>
           </select>
         </label>
-
-        <div></div>
-
-        <div></div>
       </div>
 
       <div class="overflow-x-auto mb-3">
         <p class="text-sm mb-2">2. 選擇電費帳單（{{ calcMode === 3 ? '可多選' : '僅可單選' }}）</p>
         <table class="table table-zebra">
-          <thead><tr><th></th><th>帳單ID</th><th>帳期</th><th>金額</th><th>度數</th><th>房源/房間</th></tr></thead>
+          <thead><tr><th></th><th>發生日期</th><th>帳期</th><th>金額</th><th>度數</th><th>房源/房間</th></tr></thead>
           <tbody>
             <tr v-for="b in electricityExpenseBills" :key="b.id">
               <td><input type="checkbox" class="checkbox checkbox-sm" :checked="selectedExpenseBillIds.includes(b.id)" @change="toggleBill(b)" /></td>
-              <td>#{{ b.id }}</td>
+              <td>{{ b.occurredAtUtc?.slice(0,10) || '-' }}</td>
               <td>{{ b.billingStartUtc?.slice(0,10) }} ~ {{ b.billingEndUtc?.slice(0,10) }}</td>
               <td>{{ b.amount }}</td>
               <td>{{ b.usageUnits ?? '-' }}</td>
@@ -35,8 +30,8 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-        <label class="form-control"><span class="label-text mb-1">帳期起日</span><input v-model="form.billingStart" type="date" max="2099-12-31" class="input input-bordered" /></label>
-        <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input v-model="form.billingEnd" type="date" max="2099-12-31" class="input input-bordered" /></label>
+        <label class="form-control"><span class="label-text mb-1">帳期起日</span><input :value="billingStart" type="date" max="2099-12-31" class="input input-bordered" disabled /></label>
+        <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input :value="billingEnd" type="date" max="2099-12-31" class="input input-bordered" disabled /></label>
         <label class="form-control"><span class="label-text mb-1">帳單總額（加總）</span><input :value="aggregatedAmount" type="number" class="input input-bordered" disabled /></label>
         <label class="form-control"><span class="label-text mb-1">總度數（加總）</span><input :value="aggregatedUnits" type="number" class="input input-bordered" disabled /></label>
       </div>
@@ -49,54 +44,35 @@
       </div>
 
       <div class="overflow-x-auto">
-        <p class="text-sm mb-2">3. 關聯租約（自動帶入，可調整）</p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-2">
-          <label class="form-control">
-            <span class="label-text mb-1">新增列：從租約選擇房間</span>
-            <select v-model="selectedContractForAdd" class="select select-bordered">
-              <option value="">請選擇租約/房間</option>
-              <option v-for="c in availableContractRoomsForAdd" :key="c.key" :value="c.key">{{ c.label }}</option>
-            </select>
-          </label>
-          <div class="form-control justify-end">
-            <button class="btn mt-6" @click="addRowFromContract">新增列</button>
-          </div>
-        </div>
+        <p class="text-sm mb-2">3. 帳期內居住租客（依合約與抄表自動帶入）</p>
         <table class="table table-zebra">
-          <thead><tr><th>租約</th><th>歸屬帳單</th><th>本期用電度數</th><th>人數</th><th>入住天數</th><th></th></tr></thead>
+          <thead><tr><th>分攤對象</th><th>租客/合約</th><th>房間</th><th>居住期間</th><th>入住天數</th><th>人數</th><th>天數×人數</th><th>起訖度數</th><th>用電度數</th><th>歸屬帳單</th></tr></thead>
           <tbody>
-            <template v-for="(a, idx) in form.allocations" :key="idx">
-              <tr>
-                <td>{{ a.contractLabel || '-' }}</td>
-                <td>
-                  <select v-model.number="a.expenseBillId" class="select select-bordered select-sm">
-                    <option :value="0">請選擇</option>
-                    <option v-for="b in selectedBills" :key="b.id" :value="b.id">
-                      #{{ b.id }} ({{ b.propertyUnitName || '-' }})
-                    </option>
-                  </select>
-                </td>
-                <td>
-                  <div class="flex gap-1 items-center">
-                    <input v-model.number="a.tenantUnits" type="number" class="input input-bordered input-sm" />
-                    <button class="btn btn-xs" @click="openMeterEditor(idx)">編輯錶數/入住</button>
-                  </div>
-                </td>
-                <td><input v-model.number="a.occupantCount" type="number" class="input input-bordered input-sm" /></td>
-                <td><input v-model.number="a.occupancyDays" type="number" class="input input-bordered input-sm" /></td>
-                <td><button class="btn btn-sm btn-error" @click="removeRow(idx)">刪除</button></td>
-              </tr>
-              <tr v-if="a && a.calcDetail">
-                <td colspan="6" class="text-sm bg-base-200">
-                  <div>私電度數：{{ a.calcDetail.privateUnitsText }}</div>
-                  <div>私電費：{{ a.calcDetail.privateAmountText }}</div>
-                  <div>公電費：{{ a.calcDetail.publicAmountText }}</div>
-                  <div>合計：{{ a.calcDetail.totalText }}</div>
-                </td>
-              </tr>
-            </template>
+            <tr v-for="(a, idx) in allocations" :key="`${a.expenseBillId}-${a.contractId}-${idx}`">
+              <td>{{ a.targetName }}</td>
+              <td>{{ partyText(a) }}</td>
+              <td>{{ a.propertyUnitName || '-' }} / {{ a.propertyRoomName || '-' }}</td>
+              <td>{{ a.occupancyStartUtc?.slice(0,10) }} ~ {{ a.occupancyEndUtc?.slice(0,10) }}</td>
+              <td>{{ a.occupancyDays }}</td>
+              <td>{{ a.occupantCount }}</td>
+              <td>{{ a.occupancyWeight }}</td>
+              <td>{{ meterText(a) }}</td>
+              <td>{{ a.tenantUnits }}</td>
+              <td>#{{ a.expenseBillId }}</td>
+            </tr>
           </tbody>
         </table>
+      </div>
+
+      <div v-if="isPreviewLoading" class="mt-3 text-sm text-base-content/70">正在帶入合約與抄表資料...</div>
+      <div v-else-if="selectedExpenseBillIds.length && !allocations.length && !previewWarnings.length" class="mt-3 alert alert-warning text-sm">
+        <span>選取的帳單目前沒有帶入可計算的合約，請檢查合約房間、帳期，以及是否已有對應抄表資料。</span>
+      </div>
+
+      <div v-if="previewWarnings.length" class="mt-3 alert alert-warning text-sm whitespace-pre-line">
+        <div>
+          <div v-for="(warning, idx) in previewWarnings" :key="idx">{{ warning }}</div>
+        </div>
       </div>
 
       <div class="flex gap-2 mt-3">
@@ -111,25 +87,29 @@
         <p>私電總額：{{ result.privateElectricityAmount.toFixed(2) }}</p>
         <p>公電總額：{{ result.publicElectricityAmount.toFixed(2) }}</p>
         <p>應繳總額：{{ result.payableAmount.toFixed(2) }}</p>
+        <p v-if="calcMode === 3">租客應收總額：{{ trunc2(tenantPayableTotal).toFixed(2) }}</p>
+        <p v-if="calcMode === 3">房東自付總額：{{ trunc2(landlordPayableTotal).toFixed(2) }}</p>
+        <div v-if="calcMode === 3" class="mt-2 space-y-1">
+          <p>公電總額 {{ result.publicElectricityAmount.toFixed(2) }} = 應繳總額 {{ aggregatedAmount.toFixed(2) }} - 私電總額 {{ result.privateElectricityAmount.toFixed(2) }}</p>
+          <p>公電單價 {{ publicUnitPriceText }} = 公電總額 {{ result.publicElectricityAmount.toFixed(2) }} / (本期日數 {{ billingDays }} × 居住總人數 {{ totalOccupantsText }})</p>
+        </div>
+      </div>
+
+      <div v-if="result && allocations.length" class="overflow-x-auto mt-3">
+        <table class="table table-zebra">
+          <thead><tr><th>分攤對象</th><th>租客/合約</th><th>私電明細</th><th>公電明細</th><th>合計</th></tr></thead>
+          <tbody>
+            <tr v-for="(a, idx) in allocations" :key="`detail-${a.expenseBillId}-${a.contractId}-${idx}`">
+              <td>{{ a.targetName }}</td>
+              <td>{{ partyText(a) }}</td>
+              <td class="whitespace-pre-line">{{ a.calcDetail?.privateAmountText || '-' }}</td>
+              <td>{{ a.calcDetail?.publicAmountText || '-' }}</td>
+              <td>{{ a.calcDetail?.totalText || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
-
-    <dialog class="modal" :class="{ 'modal-open': meterEditor.open }">
-      <div class="modal-box">
-        <h3 class="font-bold text-lg mb-3">編輯錶數</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <label class="form-control"><span class="label-text mb-1">上期讀表日（帳期起日）</span><input v-model="meterEditor.prevDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">本期讀表日（帳期迄日）</span><input v-model="meterEditor.currentDate" type="date" max="2099-12-31" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">前一期度數</span><input v-model.number="meterEditor.prevUnits" type="number" class="input input-bordered" /></label>
-          <label class="form-control"><span class="label-text mb-1">現在錶數</span><input v-model.number="meterEditor.currentMeter" type="number" class="input input-bordered" /></label>
-        </div>
-        <p class="text-sm mt-2">用電度數 = 現在錶數 - 前一期度數</p>
-        <div class="modal-action">
-          <button class="btn" @click="closeMeterEditor">取消</button>
-          <button class="btn btn-primary" @click="saveMeterEditor">儲存</button>
-        </div>
-      </div>
-    </dialog>
   </div>
 </template>
 
@@ -140,74 +120,54 @@ import api from '../services/api'
 const calcMode = ref(3)
 const selectedExpenseBillIds = ref<number[]>([])
 const electricityExpenseBills = ref<any[]>([])
-const relatedContracts = ref<any[]>([])
-const relatedContractRooms = ref<any[]>([])
-const allContractRooms = ref<any[]>([])
-const selectedContractForAdd = ref<string>('')
+const allocations = ref<any[]>([])
+const previewWarnings = ref<string[]>([])
 const error = ref('')
 const notice = ref('')
 const result = ref<any>(null)
 const manualUnitPrice = ref<number>(0)
-const today = new Date().toISOString().slice(0, 10)
-const form = ref<any>({ contractId: 0, billingStart: today, billingEnd: today, allocations: [] })
-const meterEditor = ref<any>({ open: false, rowIndex: -1, prevDate: '', currentDate: '', prevUnits: 0, currentMeter: 0 })
+const isPreviewLoading = ref(false)
+let previewRequestSeq = 0
 const round2 = (n:number) => Math.round((Number(n || 0) + Number.EPSILON) * 100) / 100
 const trunc2 = (n:number) => Math.floor(Number(n || 0) * 100) / 100
 const trunc0 = (n:number) => Math.floor(Number(n || 0))
-const md = (v?:string) => {
-  if (!v) return '-'
-  const d = v.slice(5,10).split('-')
-  if (d.length !== 2) return v
-  return `${Number(d[0])}/${Number(d[1])}`
-}
 
 const selectedBills = computed(() => electricityExpenseBills.value.filter((x:any)=>selectedExpenseBillIds.value.includes(x.id)))
-const availableContractRoomsForAdd = computed(() => {
-  if (calcMode.value === 1 && selectedExpenseBillIds.value.length === 0) return allContractRooms.value
-  return relatedContractRooms.value
-})
 const selectedBillMap = computed(() => new Map<number, any>(selectedBills.value.map((b:any)=>[b.id,b])))
 const aggregatedAmount = computed(() => selectedBills.value.reduce((s:number,b:any)=>s + Number(b.amount || 0), 0))
 const aggregatedUnits = computed(() => selectedBills.value.reduce((s:number,b:any)=>s + Number(b.usageUnits || 0), 0))
-const periodDays = computed(() => {
-  if (!form.value.billingStart || !form.value.billingEnd) return 0
-  const start = new Date(`${form.value.billingStart}T00:00:00Z`)
-  const end = new Date(`${form.value.billingEnd}T00:00:00Z`)
-  if (end < start) return 0
-  return Math.floor((end.getTime() - start.getTime()) / 86400000) + 1
+const billingStart = computed(() => selectedBills.value[0]?.billingStartUtc?.slice(0,10) || '')
+const billingEnd = computed(() => selectedBills.value[0]?.billingEndUtc?.slice(0,10) || '')
+const billingDays = computed(() => {
+  if (!billingStart.value || !billingEnd.value) return 0
+  const start = new Date(`${billingStart.value}T00:00:00Z`)
+  const end = new Date(`${billingEnd.value}T00:00:00Z`)
+  return end < start ? 0 : Math.floor((end.getTime() - start.getTime()) / 86400000) + 1
 })
-const resolveBillForAllocation = (a:any) => {
-  return selectedBillMap.value.get(Number(a?.expenseBillId || 0))
-}
-const findBillByRoom = (roomId:number) => selectedBills.value.find((b:any) => Number(b.propertyRoomId || 0) === Number(roomId))
-const getLatestSelectedBill = () => {
-  const lastId = selectedExpenseBillIds.value[selectedExpenseBillIds.value.length - 1]
-  return selectedBillMap.value.get(Number(lastId || 0)) || selectedBills.value[selectedBills.value.length - 1]
-}
+const occupancyWeightTotal = computed(() => allocations.value.reduce((s:number, x:any) => s + Number(x.occupancyWeight || 0), 0))
+const totalOccupants = computed(() => billingDays.value === 0 ? 0 : occupancyWeightTotal.value / billingDays.value)
+const totalOccupantsText = computed(() => round2(totalOccupants.value).toFixed(2))
+const landlordPayableTotal = computed(() => allocations.value
+  .filter((x:any) => Number(x.targetType) === 2)
+  .reduce((s:number, x:any) => s + Number(x.calcDetail?.payableAmount || 0), 0))
+const tenantPayableTotal = computed(() => allocations.value
+  .filter((x:any) => Number(x.targetType) === 1)
+  .reduce((s:number, x:any) => s + Number(x.calcDetail?.payableAmount || 0), 0))
+const publicUnitPriceText = computed(() => {
+  if (!result.value || calcMode.value !== 3 || occupancyWeightTotal.value === 0) return '0.00'
+  return round2(Number(result.value.publicElectricityAmount || 0) / occupancyWeightTotal.value).toFixed(2)
+})
 
-const addRowFromContract = () => {
-  error.value = ''
-  const pick = availableContractRoomsForAdd.value.find((x:any) => x.key === selectedContractForAdd.value)
-  if (!pick) {
-    error.value = '請先選擇租約/房間再新增'
-    return
-  }
-  form.value.allocations.push({
-    contractId: pick.contractId,
-    propertyRoomId: pick.propertyRoomId,
-    tenantId: pick.tenantId,
-    tenantName: pick.tenantName || '',
-    contractLabel: pick.label,
-    expenseBillId: findBillByRoom(Number(pick.propertyRoomId || 0))?.id || selectedBills.value[0]?.id || 0,
-    tenantUnits: 0,
-    occupantCount: pick.occupantCount || 1,
-    occupancyDays: periodDays.value,
-    occupancyStartDate: form.value.billingStart,
-    occupancyEndDate: form.value.billingEnd,
-    calcDetail: null
-  })
+const meterText = (row:any) => {
+  if (row.meterStart == null || row.meterEnd == null) return '-'
+  return `${round2(Number(row.meterStart))} → ${round2(Number(row.meterEnd))}`
 }
-const removeRow = (idx:number) => form.value.allocations.splice(idx,1)
+const partyText = (row:any) => Number(row.targetType) === 2 ? '房東自付' : `${row.tenantName || '-'} / ${row.contractNo || '-'}`
+const formatDate = (value:any) => value ? String(value).slice(0, 10) : '-'
+const buildPrivateUsageLine = (row:any) => {
+  if (row.meterStart == null || row.meterEnd == null) return `${round2(Number(row.tenantUnits || 0))}度`
+  return `本期度數(${formatDate(row.meterEndDateUtc)}) ${round2(Number(row.meterEnd))} - 上期度數(${formatDate(row.meterStartDateUtc)}) ${round2(Number(row.meterStart))} = ${round2(Number(row.tenantUnits || 0))}度`
+}
 
 const loadExpenseBills = async () => {
   const { data } = await api.get('/expenses', {
@@ -216,7 +176,7 @@ const loadExpenseBills = async () => {
       endDateUtc: new Date('2099-12-31T00:00:00Z').toISOString()
     }
   })
-  electricityExpenseBills.value = data.filter((x: any) => x.category === 2)
+  electricityExpenseBills.value = data.filter((x: any) => x.category === 2 && Number(x.splitStatus || 1) === 1)
     .sort((a:any,b:any) => {
       const aDate = String(a.occurredAtUtc || '')
       const bDate = String(b.occurredAtUtc || '')
@@ -228,195 +188,82 @@ const loadExpenseBills = async () => {
     })
 }
 
-const loadAllContracts = async () => {
-  const { data } = await api.get('/contracts')
-  allContractRooms.value = data.flatMap((c:any) => {
-    const rooms = Array.isArray(c.rooms) ? c.rooms : []
-    if (!rooms.length) {
-      return [{
-        key: `${c.id}:0`,
-        contractId: c.id,
-        propertyRoomId: 0,
-        tenantId: c.tenantId,
-        tenantName: c.tenant?.name || '',
-        occupantCount: c.occupantCount || 1,
-        label: `${c.contractNo} - ${c.tenant?.name || '-'}`
-      }]
-    }
-    return rooms.map((r:any) => ({
-      key: `${c.id}:${r.propertyRoomId}`,
-      contractId: c.id,
-      propertyRoomId: r.propertyRoomId,
-      tenantId: c.tenantId,
-      tenantName: c.tenant?.name || '',
-      occupantCount: c.occupantCount || 1,
-      label: `${c.contractNo} - ${c.tenant?.name || '-'} / ${r.roomName || ''}`
+const resetPreview = () => {
+  allocations.value = []
+  previewWarnings.value = []
+  result.value = null
+}
+
+const loadPreview = async () => {
+  const requestSeq = ++previewRequestSeq
+  resetPreview()
+  if (!selectedExpenseBillIds.value.length) {
+    isPreviewLoading.value = false
+    return
+  }
+  isPreviewLoading.value = true
+  try {
+    const { data } = await api.post('/electricity/preview-from-expenses', { expenseBillIds: [...selectedExpenseBillIds.value] })
+    if (requestSeq !== previewRequestSeq) return
+
+    previewWarnings.value = Array.isArray(data?.warnings) ? data.warnings : []
+    allocations.value = (Array.isArray(data?.allocations) ? data.allocations : []).map((x:any) => ({
+      ...x,
+      occupancyWeight: Number(x.occupancyDays || 0) * Number(x.occupantCount || 0),
+      calcDetail: null
     }))
-  })
+
+    if (!allocations.value.length && previewWarnings.value.length) {
+      error.value = '選取帳單沒有帶入可計算的合約，請先確認警示內容。'
+    }
+  } catch (e:any) {
+    if (requestSeq !== previewRequestSeq) return
+    const message = e?.response?.data || e?.message || '帶入帳單資料失敗'
+    error.value = typeof message === 'string' ? message : JSON.stringify(message)
+  } finally {
+    if (requestSeq === previewRequestSeq) {
+      isPreviewLoading.value = false
+    }
+  }
 }
 
 const toggleBill = async (bill: any) => {
+  error.value = ''
+  notice.value = ''
+  result.value = null
   const alreadySelected = selectedExpenseBillIds.value.includes(bill.id)
-  const selectingNew = !alreadySelected
-  const newlySelectedBillId = Number(bill.id)
-  const newlySelectedRoomId = Number(bill.propertyRoomId || 0)
   if (alreadySelected) {
     selectedExpenseBillIds.value = selectedExpenseBillIds.value.filter(x => x !== bill.id)
-  } else {
-    if (calcMode.value === 1 || calcMode.value === 2) {
-      selectedExpenseBillIds.value = [bill.id]
-    } else {
-    if (selectedBills.value.length > 0) {
-      const first = selectedBills.value[0]
-      const samePeriod = first.billingStartUtc?.slice(0,10) === bill.billingStartUtc?.slice(0,10) &&
-        first.billingEndUtc?.slice(0,10) === bill.billingEndUtc?.slice(0,10)
-      if (!samePeriod) {
-        error.value = '多錶計算僅可選擇同期帳單'
-        return
-      }
-    }
-    selectedExpenseBillIds.value.push(bill.id)
-    }
-  }
-
-  error.value = ''
-  const first = selectedBills.value[0]
-  if (!first) {
-    relatedContracts.value = []
-    relatedContractRooms.value = []
-    selectedContractForAdd.value = ''
-    form.value.contractId = 0
-    form.value.allocations = []
+    await loadPreview()
     return
   }
-  form.value.billingStart = first.billingStartUtc?.slice(0,10)
-  form.value.billingEnd = first.billingEndUtc?.slice(0,10)
 
-  const unitIds = [...new Set(selectedBills.value.map((x: any) => x.propertyUnitId).filter((x: any) => !!x))]
-  const roomIds = [...new Set(selectedBills.value.map((x: any) => x.propertyRoomId).filter((x: any) => !!x))]
-  const relMap = new Map<number, any>()
-  for (const uid of unitIds) {
-    const { data } = await api.get('/contracts', { params: { propertyUnitId: uid } })
-    for (const c of data) relMap.set(c.id, c)
-  }
-  for (const rid of roomIds) {
-    const { data } = await api.get('/contracts', { params: { propertyRoomId: rid } })
-    for (const c of data) relMap.set(c.id, c)
-  }
-  const rel = [...relMap.values()]
-  relatedContracts.value = rel
-  relatedContractRooms.value = rel.flatMap((c:any) => {
-    const rooms = Array.isArray(c.rooms) ? c.rooms : []
-    if (!rooms.length) {
-      return [{
-        key: `${c.id}:0`,
-        contractId: c.id,
-        propertyRoomId: 0,
-        tenantId: c.tenantId,
-        tenantName: c.tenant?.name || '',
-        occupantCount: c.occupantCount || 1,
-        label: `${c.contractNo} - ${c.tenant?.name || '-'}`
-      }]
-    }
-    return rooms.map((r:any) => ({
-      key: `${c.id}:${r.propertyRoomId}`,
-      contractId: c.id,
-      propertyRoomId: r.propertyRoomId,
-      tenantId: c.tenantId,
-      tenantName: c.tenant?.name || '',
-      occupantCount: c.occupantCount || 1,
-      label: `${c.contractNo} - ${c.tenant?.name || '-'} / ${r.roomName || ''}`
-    }))
-  })
-  selectedContractForAdd.value = relatedContractRooms.value[0]?.key || ''
-  form.value.contractId = rel.length ? rel[0].id : 0
-  if (!form.value.allocations.length) {
-    form.value.allocations = relatedContractRooms.value.map((x:any) => ({
-      contractId: x.contractId,
-      propertyRoomId: x.propertyRoomId,
-      tenantId: x.tenantId,
-      tenantName: x.tenantName,
-      contractLabel: x.label,
-      expenseBillId: (selectingNew && newlySelectedRoomId > 0 && Number(x.propertyRoomId || 0) === newlySelectedRoomId)
-        ? newlySelectedBillId
-        : (findBillByRoom(Number(x.propertyRoomId || 0))?.id || getLatestSelectedBill()?.id || 0),
-      tenantUnits: 0,
-      occupantCount: x.occupantCount || 1,
-      occupancyDays: periodDays.value,
-      occupancyStartDate: form.value.billingStart,
-      occupancyEndDate: form.value.billingEnd,
-      calcDetail: null
-    }))
-  } else {
-    const existingKeys = new Set(form.value.allocations.map((a:any) => `${a.contractId}:${a.propertyRoomId}`))
-    const missing = relatedContractRooms.value
-      .filter((x:any) => !existingKeys.has(`${x.contractId}:${x.propertyRoomId}`))
-      .map((x:any) => ({
-        contractId: x.contractId,
-        propertyRoomId: x.propertyRoomId,
-        tenantId: x.tenantId,
-        tenantName: x.tenantName,
-        contractLabel: x.label,
-        expenseBillId: (selectingNew && newlySelectedRoomId > 0 && Number(x.propertyRoomId || 0) === newlySelectedRoomId)
-          ? newlySelectedBillId
-          : (findBillByRoom(Number(x.propertyRoomId || 0))?.id || getLatestSelectedBill()?.id || 0),
-        tenantUnits: 0,
-        occupantCount: x.occupantCount || 1,
-        occupancyDays: periodDays.value,
-        occupancyStartDate: form.value.billingStart,
-        occupancyEndDate: form.value.billingEnd,
-        calcDetail: null
-      }))
-    if (missing.length) form.value.allocations.push(...missing)
+  if (calcMode.value === 1) {
+    selectedExpenseBillIds.value = [bill.id]
+    await loadPreview()
+    return
   }
 
-  if (selectingNew && newlySelectedRoomId > 0) {
-    for (const row of form.value.allocations) {
-      if (Number(row.propertyRoomId || 0) === newlySelectedRoomId) {
-        row.expenseBillId = newlySelectedBillId
-      }
+  if (selectedBills.value.length > 0) {
+    const first = selectedBills.value[0]
+    const samePeriod = first.billingStartUtc?.slice(0,10) === bill.billingStartUtc?.slice(0,10) &&
+      first.billingEndUtc?.slice(0,10) === bill.billingEndUtc?.slice(0,10)
+    if (!samePeriod) {
+      error.value = '多錶計算僅可選擇同期帳單'
+      return
     }
   }
-}
 
-const openMeterEditor = (idx:number) => {
-  const row = form.value.allocations[idx]
-  meterEditor.value = {
-    open: true,
-    rowIndex: idx,
-    prevDate: (resolveBillForAllocation(row)?.billingStartUtc || form.value.billingStart)?.slice(0,10),
-    currentDate: (resolveBillForAllocation(row)?.billingEndUtc || form.value.billingEnd)?.slice(0,10),
-    prevUnits: Number(row.prevUnits || 0),
-    currentMeter: Number(row.currentMeter || 0)
-  }
-}
-const closeMeterEditor = () => { meterEditor.value.open = false }
-const saveMeterEditor = () => {
-  const i = meterEditor.value.rowIndex
-  if (i < 0) return
-  const row = form.value.allocations[i]
-  const usage = Number(meterEditor.value.currentMeter || 0) - Number(meterEditor.value.prevUnits || 0)
-  row.prevReadingDate = meterEditor.value.prevDate || ''
-  row.currentReadingDate = meterEditor.value.currentDate || ''
-  row.prevUnits = Number(meterEditor.value.prevUnits || 0)
-  row.currentMeter = Number(meterEditor.value.currentMeter || 0)
-  row.tenantUnits = round2(usage < 0 ? 0 : usage)
-  closeMeterEditor()
+  selectedExpenseBillIds.value.push(bill.id)
+  await loadPreview()
 }
 
 const validate = () => {
   if (!calcMode.value) return '請選擇計算方式'
-  if ((calcMode.value === 2 || calcMode.value === 3) && !selectedExpenseBillIds.value.length) return '請選擇至少一張電費帳單'
-  if ((calcMode.value === 1 || calcMode.value === 2) && selectedExpenseBillIds.value.length > 1) return '此計算方式僅可選擇一張帳單'
+  if (!selectedExpenseBillIds.value.length) return '請選擇至少一張電費帳單'
+  if (calcMode.value === 1 && selectedExpenseBillIds.value.length > 1) return '此計算方式僅可選擇一張帳單'
   if (calcMode.value === 1 && Number(manualUnitPrice.value || 0) <= 0) return '依度數計算請輸入單價'
-  if (calcMode.value === 3 && aggregatedUnits.value <= 0) return '多錶計算需有總度數'
-  if (!form.value.allocations.length) return '請確認租客名單'
-  if (form.value.allocations.some((x:any)=>!x.tenantId)) return '租客不可為空'
-  if (!(calcMode.value === 1 && selectedExpenseBillIds.value.length === 0)) {
-    if (form.value.allocations.some((x:any)=>!x.expenseBillId)) return '每筆租客需指定歸屬帳單'
-    if (form.value.allocations.some((x:any)=>!selectedExpenseBillIds.value.includes(Number(x.expenseBillId)))) return '租客歸屬帳單必須在已勾選帳單內'
-  }
-  if (!(form.value.contractId || relatedContracts.value[0]?.id || form.value.allocations[0]?.contractId)) return '找不到可用合約，請先確認合約資料'
+  if (!allocations.value.length) return '帳期內找不到可分攤的租客資料'
   return ''
 }
 
@@ -424,9 +271,10 @@ const calculate = async () => {
   notice.value = ''
   error.value = validate()
   if (error.value) return
+
   if (calcMode.value === 3) {
-    const privateAmounts = form.value.allocations.map((x:any) => {
-      const bill = resolveBillForAllocation(x)
+    const privateAmounts = allocations.value.map((x:any) => {
+      const bill = selectedBillMap.value.get(Number(x.expenseBillId || 0))
       const amount = Number(bill?.amount || 0)
       const units = Number(bill?.usageUnits || 0)
       const unitPrice = units === 0 ? 0 : amount / units
@@ -434,20 +282,22 @@ const calculate = async () => {
     })
     const privateTotal = round2(privateAmounts.reduce((s:number,v:number)=>s+v,0))
     const publicTotal = round2(aggregatedAmount.value - privateTotal)
-    const divisor = form.value.allocations.reduce((s:number,x:any)=>s + (Number(x.occupantCount || 0) * Number(x.occupancyDays || 0)),0)
+    const divisor = allocations.value.reduce((s:number,x:any)=>s + Number(x.occupancyWeight || 0),0)
     const averageDailyPrice = divisor === 0 ? 0 : round2(publicTotal / divisor)
-    const payables = form.value.allocations.map((x:any,idx:number) => {
-      const publicPart = round2(Number(x.occupantCount || 0) * Number(x.occupancyDays || 0) * averageDailyPrice)
+    const payables = allocations.value.map((x:any,idx:number) => {
+      const publicPart = round2(Number(x.occupancyWeight || 0) * averageDailyPrice)
       const payable = trunc0(privateAmounts[idx] + publicPart)
-      const bill = resolveBillForAllocation(x)
+      const bill = selectedBillMap.value.get(Number(x.expenseBillId || 0))
       const billAmount = Number(bill?.amount || 0)
       const billUnits = Number(bill?.usageUnits || 0)
       const unitPrice = billUnits === 0 ? 0 : round2(billAmount / billUnits)
       x.calcDetail = {
-        privateUnitsText: `本期度數(${md(x.currentReadingDate)}) - 上期度數(${md(x.prevReadingDate)}) = ${round2(Number(x.currentMeter || 0))} - ${round2(Number(x.prevUnits || 0))} = ${round2(Number(x.tenantUnits || 0))}度`,
-        privateAmountText: `${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
-        publicAmountText: `住${Number(x.occupancyDays || 0)}日 × ${Number(x.occupantCount || 0)}人 × ${averageDailyPrice}元/日 = ${publicPart}元`,
-        totalText: `${privateAmounts[idx]} + ${publicPart} = ${payable}元`
+        privateAmountText: `${buildPrivateUsageLine(x)}\n${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
+        publicAmountText: `${Number(x.occupancyDays || 0)}日 × ${Number(x.occupantCount || 0)}人 × ${averageDailyPrice}元 = ${publicPart}元`,
+        totalText: `${privateAmounts[idx]} + ${publicPart} = ${payable}元`,
+        privateAmount: privateAmounts[idx],
+        publicAmount: publicPart,
+        payableAmount: payable
       }
       return payable
     })
@@ -460,9 +310,10 @@ const calculate = async () => {
     }
     return
   }
+
   if (calcMode.value === 1) {
     const unitPrice = round2(Number(manualUnitPrice.value || 0))
-    const privateAmounts = form.value.allocations.map((x:any) => round2(Number(x.tenantUnits || 0) * unitPrice))
+    const privateAmounts = allocations.value.map((x:any) => round2(Number(x.tenantUnits || 0) * unitPrice))
     const privateTotal = round2(privateAmounts.reduce((s:number,v:number)=>s+v,0))
     result.value = {
       unitPrice,
@@ -471,76 +322,67 @@ const calculate = async () => {
       payableAmount: trunc2(privateTotal),
       tenantPayables: privateAmounts.map((x:number)=>trunc0(x))
     }
-    form.value.allocations.forEach((x:any, idx:number) => {
+    allocations.value.forEach((x:any, idx:number) => {
       const payable = trunc0(privateAmounts[idx])
       x.calcDetail = {
-        privateUnitsText: `本期度數(${md(x.currentReadingDate)}) - 上期度數(${md(x.prevReadingDate)}) = ${round2(Number(x.currentMeter || 0))} - ${round2(Number(x.prevUnits || 0))} = ${round2(Number(x.tenantUnits || 0))}度`,
-        privateAmountText: `${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
-        publicAmountText: `公電費：0元`,
-        totalText: `${privateAmounts[idx]} = ${payable}元`
+        privateAmountText: `${buildPrivateUsageLine(x)}\n${round2(Number(x.tenantUnits || 0))}度 × 單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
+        publicAmountText: '公電費：0元',
+        totalText: `${privateAmounts[idx]} = ${payable}元`,
+        privateAmount: privateAmounts[idx],
+        publicAmount: 0,
+        payableAmount: payable
       }
     })
     return
   }
-  if (calcMode.value === 2) {
-    const tenantUnitsTotal = round2(form.value.allocations.reduce((s:number, x:any) => s + Number(x.tenantUnits || 0), 0))
-    const payables = form.value.allocations.map((x:any) => {
-      const ratio = tenantUnitsTotal === 0 ? 0 : Number(x.tenantUnits || 0) / tenantUnitsTotal
-      return Math.round(aggregatedAmount.value * ratio)
-    })
-    const payableTotal = round2(payables.reduce((s:number,v:number)=>s+v,0))
-    const unitPrice = tenantUnitsTotal === 0 ? 0 : round2(aggregatedAmount.value / tenantUnitsTotal)
-    result.value = {
-      unitPrice,
-      privateElectricityAmount: payableTotal,
-      publicElectricityAmount: 0,
-      payableAmount: payableTotal,
-      tenantPayables: payables
-    }
-    form.value.allocations.forEach((x:any, idx:number) => {
-      const ratio = tenantUnitsTotal === 0 ? 0 : Number(x.tenantUnits || 0) / tenantUnitsTotal
-      const payable = payables[idx]
-      x.calcDetail = {
-        privateUnitsText: `本期度數(${md(x.currentReadingDate)}) - 上期度數(${md(x.prevReadingDate)}) = ${round2(Number(x.currentMeter || 0))} - ${round2(Number(x.prevUnits || 0))} = ${round2(Number(x.tenantUnits || 0))}度`,
-        privateAmountText: `應付占比：${round2(Number(x.tenantUnits || 0))} / ${tenantUnitsTotal} = ${round2(ratio * 100)}%`,
-        publicAmountText: `公電費：0元`,
-        totalText: `帳單總額 ${round2(aggregatedAmount.value)} × ${round2(ratio * 100)}% = ${payable}元（四捨五入）`
-      }
-    })
-    return
-  }
-  const payload = {
-    ruleType: calcMode.value,
-    unitPrice: calcMode.value === 1 ? manualUnitPrice.value : undefined,
-    billAmount: aggregatedAmount.value,
-    totalUnits: aggregatedUnits.value,
-    tenants: form.value.allocations.map((x: any) => ({ tenantUnits: x.tenantUnits, occupantCount: x.occupantCount, occupancyDays: x.occupancyDays }))
-  }
-  const { data } = await api.post('/electricity/calculate', payload)
-  result.value = data
+
 }
 
 const saveBill = async () => {
   notice.value = ''
   error.value = validate()
   if (error.value) return
+  // 先以目前分攤資料重新試算，確保送出的金額與畫面一致（試算＝應收同一口徑）
+  await calculate()
+  if (error.value) return
   try {
+    const primaryContractId = allocations.value.find((x:any) => Number(x.targetType) === 1 && x.contractId)?.contractId ?? null
     const { data } = await api.post('/electricity/bills', {
-      contractId: form.value.contractId || relatedContracts.value[0]?.id || form.value.allocations[0]?.contractId || 0,
+      contractId: primaryContractId,
       ruleType: calcMode.value,
-      billingStartUtc: new Date(`${form.value.billingStart}T00:00:00Z`).toISOString(),
-      billingEndUtc: new Date(`${form.value.billingEnd}T00:00:00Z`).toISOString(),
+      billingStartUtc: new Date(`${billingStart.value}T00:00:00Z`).toISOString(),
+      billingEndUtc: new Date(`${billingEnd.value}T00:00:00Z`).toISOString(),
       totalAmount: aggregatedAmount.value,
       totalUnits: aggregatedUnits.value,
       unitPrice: aggregatedUnits.value === 0 ? 0 : aggregatedAmount.value / aggregatedUnits.value,
-      allocations: form.value.allocations.map((x: any) => ({ tenantId: x.tenantId, tenantUnits: x.tenantUnits, occupantCount: x.occupantCount, occupancyDays: x.occupancyDays }))
+      allocations: allocations.value.map((x: any) => ({
+        targetType: x.targetType,
+        contractId: x.contractId,
+        propertyRoomId: x.propertyRoomId,
+        tenantId: x.tenantId,
+        occupancyStartUtc: x.occupancyStartUtc,
+        occupancyEndUtc: x.occupancyEndUtc,
+        meterStart: x.meterStart,
+        meterEnd: x.meterEnd,
+        tenantUnits: x.tenantUnits,
+        occupantCount: x.occupantCount,
+        occupancyDays: x.occupancyDays,
+        privateAmount: x.calcDetail?.privateAmount ?? null,
+        publicAmount: x.calcDetail?.publicAmount ?? null,
+        payableAmount: x.calcDetail?.payableAmount ?? null
+      }))
     })
     const billId = Number(data?.billId || 0)
     if (billId > 0) {
-      await api.post(`/electricity/bills/${billId}/create-charges`, null, { params: { mode: 'merged' } })
-      notice.value = `帳單儲存成功，並已彙總轉入應收（帳單#${billId}）`
+      await api.post(`/electricity/bills/${billId}/create-charges`, {
+        expenseBillIds: selectedExpenseBillIds.value
+      })
+      await loadExpenseBills()
+      selectedExpenseBillIds.value = []
+      resetPreview()
+      notice.value = '儲存成功'
     } else {
-      notice.value = '帳單儲存成功'
+      notice.value = '儲存成功'
     }
   } catch (e:any) {
     const message = e?.response?.data || e?.message || '儲存失敗'
@@ -549,5 +391,4 @@ const saveBill = async () => {
 }
 
 onMounted(loadExpenseBills)
-onMounted(loadAllContracts)
 </script>
