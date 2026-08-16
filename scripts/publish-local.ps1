@@ -1,4 +1,4 @@
-param(
+﻿param(
   [string]$Configuration = "Release",
   [string]$ApiBaseUrl = "/api"
 )
@@ -6,26 +6,28 @@ param(
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$deployRoot = Join-Path $root "deploy"
+# build/ 同時是「部署設定來源」與「建置產物輸出」目錄：
+#   - 設定檔（docker-compose.yml / .env.example / nginx.conf / docker/）為 git 追蹤的來源
+#   - api/ web/ seed/ 為本腳本產生的成品，已於 .gitignore 忽略
+$buildRoot = Join-Path $root "build"
 $apiProject = Join-Path $root "src\backend\RentalManager.Api\RentalManager.Api.csproj"
 $frontendDir = Join-Path $root "src\frontend\rental-manager-web"
-$publishRoot = Join-Path $root "publish"
-$apiOutput = Join-Path $publishRoot "api\publish"
-$webOutput = Join-Path $publishRoot "web"
+$apiOutput = Join-Path $buildRoot "api\publish"
+$webOutput = Join-Path $buildRoot "web"
 $seedSource = Join-Path $root "src\backend\RentalManager.Api\Seed"
-$seedTarget = Join-Path $publishRoot "seed"
-$nginxSource = Join-Path $deployRoot "nginx.conf"
-$nginxTarget = Join-Path $publishRoot "nginx.conf"
+$seedTarget = Join-Path $buildRoot "seed"
 
-Write-Host "Preparing artifact directories..."
-if (Test-Path $publishRoot) {
-  Get-ChildItem -Force $publishRoot | Remove-Item -Recurse -Force
+Write-Host "Cleaning generated artifact directories (keeps committed deploy config)..."
+# 只清理產生的頂層子資料夾，保留 build/ 內的設定檔來源（docker-compose.yml / .env.example / nginx.conf / docker/）
+foreach ($generated in @("api", "web", "seed")) {
+  $target = Join-Path $buildRoot $generated
+  if (Test-Path $target) {
+    Remove-Item -Recurse -Force $target
+  }
 }
-New-Item -ItemType Directory -Force -Path $publishRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $apiOutput | Out-Null
 New-Item -ItemType Directory -Force -Path $webOutput | Out-Null
 New-Item -ItemType Directory -Force -Path $seedTarget | Out-Null
-New-Item -ItemType Directory -Force -Path (Join-Path $publishRoot "docker") | Out-Null
 
 Write-Host "Publishing backend..."
 dotnet publish $apiProject -c $Configuration -o $apiOutput /p:UseAppHost=false
@@ -58,18 +60,14 @@ if (Test-Path $webDist) {
 }
 Copy-Item -Recurse -Force $distDir $webDist
 Copy-Item -Recurse -Force (Join-Path $seedSource "*") $seedTarget
-Copy-Item -Force (Join-Path $deployRoot "docker-compose.yml") (Join-Path $publishRoot "docker-compose.yml")
-Copy-Item -Force (Join-Path $deployRoot ".env.example") (Join-Path $publishRoot ".env.example")
-Copy-Item -Recurse -Force (Join-Path $deployRoot "docker\*") (Join-Path $publishRoot "docker")
-Copy-Item -Force $nginxSource $nginxTarget
 
 Write-Host ""
 Write-Host "Deployment bundle ready:"
-Write-Host "  Publish: $publishRoot"
-Write-Host "  API: $apiOutput"
-Write-Host "  Web: $webDist"
-Write-Host "  Seed: $seedTarget"
+Write-Host "  Build:  $buildRoot"
+Write-Host "  API:    $apiOutput"
+Write-Host "  Web:    $webDist"
+Write-Host "  Seed:   $seedTarget"
 Write-Host ""
 Write-Host "Next step:"
-Write-Host "  cd publish"
+Write-Host "  cd build"
 Write-Host "  docker compose up -d --build"

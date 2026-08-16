@@ -48,40 +48,40 @@
 - 房客端（TenantOnly）：`/api/portal/contracts`、`/api/portal/charges`、`/api/portal/repair-tickets`、`/api/portal/attachments`
 
 ## Docker Compose 部署（Synology NAS）
-- 已提供：
-  - `deploy/docker-compose.yml`（含 `postgres_data` 與 `uploads_data` volumes）
-  - `deploy/.env.example`
-  - `deploy/docker/api-runtime.Dockerfile`
-  - `deploy/docker/web-runtime.Dockerfile`
-  - `deploy/nginx.conf`（`client_max_body_size 20m`，附件上傳用）
-  - `scripts/publish-local.ps1`
+- 單一 `build/` 資料夾同時是「部署設定來源」與「建置產物輸出」：
+  - 追蹤的設定來源：
+    - `build/docker-compose.yml`（使用 `./data/postgres` 與 `./data/uploads` bind mounts）
+    - `build/.env.example`
+    - `build/docker/api-runtime.Dockerfile`
+    - `build/docker/web-runtime.Dockerfile`
+    - `build/nginx.conf`（`client_max_body_size 20m`，附件上傳用）
+  - 由 `scripts/publish-local.ps1` 產生（已 gitignore）：`build/api/`、`build/web/`、`build/seed/`
 - 部署模式：
-  - 本機先 build 前端與後端
-  - 由 `deploy/` 模板組出 `publish/`
+  - 本機先 build 前端與後端，成品直接輸出到 `build/`
   - Docker 只打包執行成品，不在容器內編譯
 - 前端容器透過 `nginx` 代理 `/api` 到後端容器。
 
 ### 本機先測試
 1. 產出部署成品：`powershell -ExecutionPolicy Bypass -File .\scripts\publish-local.ps1`
-2. 複製環境檔：`Copy-Item .\deploy\.env.example .\publish\.env`
+2. 複製環境檔：`Copy-Item .\build\.env.example .\build\.env`
 3. 至少修改 `.env` 內的：
    - `POSTGRES_PASSWORD`
    - `JWT_KEY`
 4. 啟動：
-   - `cd .\publish`
+   - `cd .\build`
    - `docker compose up -d --build`
 5. 開啟：`http://localhost:8080`
 
 ### Synology NAS 部署
-1. 在本機執行 `scripts/publish-local.ps1` 產出 `publish/`
-2. 將整個 `publish/` 目錄放到 NAS，例如 `/volume1/docker/rental-manager`
+1. 在本機執行 `scripts/publish-local.ps1` 產出 `build/`
+2. 將整個 `build/` 目錄放到 NAS，例如 `/volume1/docker/rental-manager`
 3. 在 NAS 上將 `.env.example` 複製成 `.env`，填入正式值
-4. 用 Synology Container Manager 以 `publish/docker-compose.yml` 建立專案
+4. 用 Synology Container Manager 以 `build/docker-compose.yml` 建立專案
 5. 啟動後，從 `http://NAS_IP:8080` 存取
 
 ### 更新流程
 1. 本機修改程式後重新執行 `scripts/publish-local.ps1`
-2. 把新的 `publish/` 覆蓋到 NAS
+2. 把新的 `build/` 覆蓋到 NAS
 3. Container Manager 重新部署
 4. **注意**：更新內含 DB migration 時，API 啟動會自動套用；`postgres_data` 與 `uploads_data` volume 不會因重建容器而清空
 
