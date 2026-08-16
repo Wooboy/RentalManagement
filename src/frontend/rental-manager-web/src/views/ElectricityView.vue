@@ -380,9 +380,9 @@ const saveBill = async () => {
       await loadExpenseBills()
       selectedExpenseBillIds.value = []
       resetPreview()
-      notice.value = `帳單儲存成功，租客應收 ${trunc2(tenantPayableTotal.value)} 元，房東自付 ${trunc2(landlordPayableTotal.value)} 元（帳單#${billId}）`
+      notice.value = '儲存成功'
     } else {
-      notice.value = '帳單儲存成功'
+      notice.value = '儲存成功'
     }
   } catch (e:any) {
     const message = e?.response?.data || e?.message || '儲存失敗'
