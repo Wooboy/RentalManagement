@@ -1,33 +1,14 @@
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: rental-manager-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-rental_manager}
-      POSTGRES_USER: ${POSTGRES_USER:-app_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
   api:
     build:
       context: .
       dockerfile: docker/api-runtime.Dockerfile
     container_name: rental-manager-api
     restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: Host=db;Port=5432;Database=${POSTGRES_DB:-rental_manager};Username=${POSTGRES_USER:-app_user};Password=${POSTGRES_PASSWORD}
+      ConnectionStrings__DefaultConnection: Host=${DB_HOST};Port=${DB_PORT:-5432};Database=${DB_NAME:-rental_manager};Username=${DB_USER:-app_user};Password=${DB_PASSWORD}
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: ${JWT_ISSUER:-RentalManager}
       Jwt__Audience: ${JWT_AUDIENCE:-RentalManagerClient}
