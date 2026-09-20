@@ -36,9 +36,18 @@
     <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="table">
-          <thead><tr><th>房源</th><th>房間</th><th>類別</th><th>分帳狀態</th><th class="text-right">金額</th><th class="text-right">度數</th><th>發生日</th><th class="text-right">操作</th></tr></thead>
+          <thead><tr>
+            <th class="cursor-pointer select-none" @click="toggleSort('property')">房源{{ sortIndicator('property') }}</th>
+            <th class="cursor-pointer select-none" @click="toggleSort('room')">房間{{ sortIndicator('room') }}</th>
+            <th class="cursor-pointer select-none" @click="toggleSort('category')">類別{{ sortIndicator('category') }}</th>
+            <th class="cursor-pointer select-none" @click="toggleSort('splitStatus')">分帳狀態{{ sortIndicator('splitStatus') }}</th>
+            <th class="text-right cursor-pointer select-none" @click="toggleSort('amount')">金額{{ sortIndicator('amount') }}</th>
+            <th class="text-right cursor-pointer select-none" @click="toggleSort('usageUnits')">度數{{ sortIndicator('usageUnits') }}</th>
+            <th class="cursor-pointer select-none" @click="toggleSort('occurredAtUtc')">發生日{{ sortIndicator('occurredAtUtc') }}</th>
+            <th class="text-right">操作</th>
+          </tr></thead>
           <tbody>
-            <tr v-for="e in items" :key="e.id">
+            <tr v-for="e in sortedItems" :key="e.id">
               <td class="font-medium">{{ e.propertyUnitName || e.propertyUnitId }}</td>
               <td>{{ e.propertyRoomName || '-' }}</td>
               <td>{{ expenseCategoryText(e.category) }}</td>
@@ -54,7 +63,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="items.length === 0"><td colspan="8" class="text-center text-base-content/50 py-10">查無支出費用資料。</td></tr>
+            <tr v-if="sortedItems.length === 0"><td colspan="8" class="text-center text-base-content/50 py-10">查無支出費用資料。</td></tr>
           </tbody>
         </table>
       </div>
@@ -105,7 +114,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import AttachmentManager from '../components/AttachmentManager.vue'
@@ -120,6 +129,31 @@ const searchCategory = ref(0)
 const searchSplitStatus = ref(0)
 const items = ref<any[]>([])
 const properties = ref<any[]>([])
+const sortKey = ref('')
+const sortDir = ref<'asc'|'desc'>('asc')
+const toggleSort = (key: string) => {
+  if (sortKey.value === key) { sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc' }
+  else { sortKey.value = key; sortDir.value = 'asc' }
+}
+const sortIndicator = (key: string) => sortKey.value === key ? (sortDir.value === 'asc' ? ' ▲' : ' ▼') : ''
+const sortValue = (e: any, key: string) => {
+  if (key === 'property') return e.propertyUnitName || e.propertyUnitId || ''
+  if (key === 'room') return e.propertyRoomName || ''
+  if (key === 'amount') return Number(e.amount || 0)
+  if (key === 'usageUnits') return e.usageUnits == null ? -Infinity : Number(e.usageUnits)
+  if (key === 'occurredAtUtc') return e.occurredAtUtc || ''
+  return e[key] ?? ''
+}
+const sortedItems = computed(() => {
+  if (!sortKey.value) return items.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return [...items.value].sort((a, b) => {
+    const av = sortValue(a, sortKey.value)
+    const bv = sortValue(b, sortKey.value)
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir
+    return String(av).localeCompare(String(bv), 'zh-Hant', { numeric: true }) * dir
+  })
+})
 const rooms = ref<any[]>([])
 const error = ref('')
 const showModal = ref(false)
