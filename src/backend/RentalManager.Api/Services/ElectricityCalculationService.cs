@@ -28,7 +28,10 @@ public static class ElectricityCalculationService
             return new ElectricityCalculateResponse(unitPrice, amount, 0, amount, null);
         }
 
-        if (request.RuleType == 3)
+        // 規則 3（多錶：各錶單價）與規則 4（多錶平均單價：多帳單加總後取單一平均單價）
+        // 在此皆以「總額 ÷ 總度數」的合併平均單價計算私電，公電再依居住人天分攤；
+        // 兩者差異（逐錶單價 vs 平均單價）由前端於帶入各帳單時決定總額與總度數。
+        if (request.RuleType == 3 || request.RuleType == 4)
         {
             var tenants = request.Tenants ?? [];
             var totalAmount = request.BillAmount ?? 0;
