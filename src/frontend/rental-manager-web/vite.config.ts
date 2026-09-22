@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
-import pkg from './package.json'
+import pkg from './package.json' with { type: 'json' }
 
 const buildTime = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Taipei' }).slice(0, 16)
 
