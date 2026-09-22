@@ -6,13 +6,14 @@
         <label class="form-control"><span class="label-text mb-1">1. 計算方式</span>
           <select v-model.number="calcMode" class="select select-bordered">
             <option :value="1">依度數計算</option>
-            <option :value="3">多錶計算</option>
+            <option :value="3">多錶計算（各錶單價）</option>
+            <option :value="4">多錶平均單價（多帳單加總）</option>
           </select>
         </label>
       </div>
 
       <div class="overflow-x-auto mb-3">
-        <p class="text-sm mb-2">2. 選擇電費帳單（{{ calcMode === 3 ? '可多選' : '僅可單選' }}）</p>
+        <p class="text-sm mb-2">2. 選擇電費帳單（{{ calcMode === 1 ? '僅可單選' : '可多選' }}）</p>
         <table class="table">
           <thead><tr><th></th><th>發生日期</th><th>帳期</th><th>金額</th><th>度數</th><th>房源/房間</th></tr></thead>
           <tbody>
@@ -86,9 +87,9 @@
         <p>私電總額：{{ result.privateElectricityAmount.toFixed(2) }}</p>
         <p>公電總額：{{ result.publicElectricityAmount.toFixed(2) }}</p>
         <p>應繳總額：{{ result.payableAmount.toFixed(2) }}</p>
-        <p v-if="calcMode === 3">租客應收總額：{{ trunc2(tenantPayableTotal).toFixed(2) }}</p>
-        <p v-if="calcMode === 3">房東自付總額：{{ trunc2(landlordPayableTotal).toFixed(2) }}</p>
-        <div v-if="calcMode === 3" class="mt-2 space-y-1">
+        <p v-if="calcMode !== 1">租客應收總額：{{ trunc2(tenantPayableTotal).toFixed(2) }}</p>
+        <p v-if="calcMode !== 1">房東自付總額：{{ trunc2(landlordPayableTotal).toFixed(2) }}</p>
+        <div v-if="calcMode !== 1" class="mt-2 space-y-1">
           <p>公電總額 {{ result.publicElectricityAmount.toFixed(2) }} = 應繳總額 {{ aggregatedAmount.toFixed(2) }} - 私電總額 {{ result.privateElectricityAmount.toFixed(2) }}</p>
           <p>公電單價 {{ publicUnitPriceText }} = 公電總額 {{ result.publicElectricityAmount.toFixed(2) }} / (本期日數 {{ billingDays }} × 居住總人數 {{ totalOccupantsText }})</p>
         </div>
@@ -154,7 +155,7 @@ const tenantPayableTotal = computed(() => allocations.value
   .filter((x:any) => Number(x.targetType) === 1)
   .reduce((s:number, x:any) => s + Number(x.calcDetail?.payableAmount || 0), 0))
 const publicUnitPriceText = computed(() => {
-  if (!result.value || calcMode.value !== 3 || occupancyWeightTotal.value === 0) return '0.00'
+  if (!result.value || calcMode.value === 1 || occupancyWeightTotal.value === 0) return '0.00'
   return round2(Number(result.value.publicElectricityAmount || 0) / occupancyWeightTotal.value).toFixed(2)
 })
 
@@ -303,6 +304,37 @@ const calculate = async () => {
     })
     result.value = {
       unitPrice: aggregatedUnits.value === 0 ? 0 : round2(aggregatedAmount.value / aggregatedUnits.value),
+      privateElectricityAmount: privateTotal,
+      publicElectricityAmount: publicTotal,
+      payableAmount: trunc2(payables.reduce((s:number,v:number)=>s+v,0)),
+      tenantPayables: payables
+    }
+    return
+  }
+
+  if (calcMode.value === 4) {
+    // 多錶平均單價：同一房源多張帳單加總金額與度數，取單一平均單價後再算各戶電費
+    const unitPrice = aggregatedUnits.value === 0 ? 0 : round2(aggregatedAmount.value / aggregatedUnits.value)
+    const privateAmounts = allocations.value.map((x:any) => round2(Number(x.tenantUnits || 0) * unitPrice))
+    const privateTotal = round2(privateAmounts.reduce((s:number,v:number)=>s+v,0))
+    const publicTotal = round2(aggregatedAmount.value - privateTotal)
+    const divisor = allocations.value.reduce((s:number,x:any)=>s + Number(x.occupancyWeight || 0),0)
+    const averageDailyPrice = divisor === 0 ? 0 : round2(publicTotal / divisor)
+    const payables = allocations.value.map((x:any,idx:number) => {
+      const publicPart = round2(Number(x.occupancyWeight || 0) * averageDailyPrice)
+      const payable = trunc0(privateAmounts[idx] + publicPart)
+      x.calcDetail = {
+        privateAmountText: `${buildPrivateUsageLine(x)}\n${round2(Number(x.tenantUnits || 0))}度 × 平均單價 ${unitPrice}元/度 = ${privateAmounts[idx]}元`,
+        publicAmountText: `${Number(x.occupancyDays || 0)}日 × ${Number(x.occupantCount || 0)}人 × ${averageDailyPrice}元 = ${publicPart}元`,
+        totalText: `${privateAmounts[idx]} + ${publicPart} = ${payable}元`,
+        privateAmount: privateAmounts[idx],
+        publicAmount: publicPart,
+        payableAmount: payable
+      }
+      return payable
+    })
+    result.value = {
+      unitPrice,
       privateElectricityAmount: privateTotal,
       publicElectricityAmount: publicTotal,
       payableAmount: trunc2(payables.reduce((s:number,v:number)=>s+v,0)),

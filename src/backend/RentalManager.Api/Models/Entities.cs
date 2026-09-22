@@ -4,7 +4,7 @@ public enum TenantType { Person = 1, Company = 2 }
 public enum UserRoleType { Admin = 1, Tenant = 2 }
 public enum ContractStatus { Active = 1, Expired = 2, Terminated = 3 }
 public enum PaymentIntervalType { Monthly = 1, Quarterly = 3, Yearly = 12 }
-public enum ElectricityRuleType { Unit = 1, Average = 2, MultiMeter = 3 }
+public enum ElectricityRuleType { Unit = 1, Average = 2, MultiMeter = 3, MultiMeterAverage = 4 }
 public enum ElectricityAllocationTargetType { Tenant = 1, Landlord = 2 }
 public enum ChargeCategory { Rent = 1, Water = 2, Electricity = 3, Other = 99 }
 public enum ExpenseCategory { Water = 1, Electricity = 2, Gas = 3, Internet = 4, Television = 5, Management = 6, Parking = 7, Tax = 8, Repair = 9, Other = 99 }

@@ -48,9 +48,10 @@
 - 房客端（TenantOnly）：`/api/portal/contracts`、`/api/portal/charges`、`/api/portal/repair-tickets`、`/api/portal/attachments`
 
 ## Docker Compose 部署（Synology NAS）
+- 資料庫（PostgreSQL）**自行管理，不包含在本 compose 內**；只部署 `api` 與 `web` 兩個容器，透過 `.env` 的 `DB_HOST` 等設定連到外部 DB。
 - 單一 `build/` 資料夾同時是「部署設定來源」與「建置產物輸出」：
   - 追蹤的設定來源：
-    - `build/docker-compose.yml`（使用 `./data/postgres` 與 `./data/uploads` bind mounts）
+    - `build/docker-compose.yml`（`api` + `web`；uploads 用 `./data/uploads` bind mount）
     - `build/.env.example`
     - `build/docker/api-runtime.Dockerfile`
     - `build/docker/web-runtime.Dockerfile`
@@ -65,8 +66,10 @@
 1. 產出部署成品：`powershell -ExecutionPolicy Bypass -File .\scripts\publish-local.ps1`
 2. 複製環境檔：`Copy-Item .\build\.env.example .\build\.env`
 3. 至少修改 `.env` 內的：
-   - `POSTGRES_PASSWORD`
+   - `DB_HOST`（外部資料庫位址；DB 也在本機時，Docker 內不能用 `localhost`，需填主機區網 IP）
+   - `DB_PASSWORD`
    - `JWT_KEY`
+   - 資料庫需先建好（`DB_NAME` 對應的 database 與 `DB_USER`），API 啟動時會自動套用 migration 建表
 4. 啟動：
    - `cd .\build`
    - `docker compose up -d --build`
@@ -83,9 +86,9 @@
 1. 本機修改程式後重新執行 `scripts/publish-local.ps1`
 2. 把新的 `build/` 覆蓋到 NAS
 3. Container Manager 重新部署
-4. **注意**：更新內含 DB migration 時，API 啟動會自動套用；`postgres_data` 與 `uploads_data` volume 不會因重建容器而清空
+4. **注意**：更新內含 DB migration 時，API 啟動會自動套用；`data/uploads` 與外部資料庫不會因重建容器而清空
 
 ### 建議
 - 正式網域請用 Synology Reverse Proxy 導到 `web` 對外埠
 - `Seed/seed-template.json` 掛載到 API 容器，資料庫為空時自動初始化
-- 附件實體檔存於 `uploads_data` volume，備份時請連同 `postgres_data` 一起備份
+- 附件實體檔存於 `data/uploads`，備份時請連同外部資料庫一起備份

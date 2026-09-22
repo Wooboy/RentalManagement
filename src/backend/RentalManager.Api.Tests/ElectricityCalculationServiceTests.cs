@@ -68,6 +68,30 @@ public class ElectricityCalculationServiceTests
     }
 
     [Fact]
+    public void Rule4_MultiMeterAverage_UsesBlendedUnitPrice()
+    {
+        // 多帳單加總後：總額 1000、總度數 200 → 平均單價 5
+        // 私電：A 100 度 = 500、B 60 度 = 300 → 公電 = 200
+        // 分母：A 2人*10天=20、B 1人*20天=20 → 每人日公電 = 5
+        var tenants = new List<ElectricityTenantInput>
+        {
+            new(TenantUnits: 100m, OccupantCount: 2, OccupancyDays: 10),
+            new(TenantUnits: 60m, OccupantCount: 1, OccupancyDays: 20)
+        };
+        var request = new ElectricityCalculateRequest(4, UnitPrice: null, TenantUnits: null, BillAmount: 1000m, TotalUnits: 200m, Tenants: tenants);
+
+        var result = ElectricityCalculationService.Calculate(request);
+
+        Assert.Equal(5m, result.UnitPrice);
+        Assert.Equal(800m, result.PrivateElectricityAmount);
+        Assert.Equal(200m, result.PublicElectricityAmount);
+        Assert.NotNull(result.TenantPayables);
+        Assert.Equal(600m, result.TenantPayables![0]);
+        Assert.Equal(400m, result.TenantPayables![1]);
+        Assert.Equal(1000m, result.PayableAmount);
+    }
+
+    [Fact]
     public void Rule3_NoTenants_PublicEqualsTotal()
     {
         var request = new ElectricityCalculateRequest(3, UnitPrice: null, TenantUnits: null, BillAmount: 1000m, TotalUnits: 200m, Tenants: []);

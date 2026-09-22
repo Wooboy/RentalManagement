@@ -26,9 +26,16 @@
     <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
       <div class="overflow-x-auto">
         <table class="table">
-          <thead><tr><th>合約</th><th>類別</th><th class="text-right">金額</th><th>發生日期</th><th>狀態</th><th class="text-right">操作</th></tr></thead>
+          <thead><tr>
+            <th class="cursor-pointer select-none" @click="toggleSort('contract')">合約{{ sortIndicator('contract') }}</th>
+            <th class="cursor-pointer select-none" @click="toggleSort('category')">類別{{ sortIndicator('category') }}</th>
+            <th class="text-right cursor-pointer select-none" @click="toggleSort('amount')">金額{{ sortIndicator('amount') }}</th>
+            <th class="cursor-pointer select-none" @click="toggleSort('occurredAtUtc')">發生日期{{ sortIndicator('occurredAtUtc') }}</th>
+            <th class="cursor-pointer select-none" @click="toggleSort('isPaid')">狀態{{ sortIndicator('isPaid') }}</th>
+            <th class="text-right">操作</th>
+          </tr></thead>
           <tbody>
-            <tr v-for="c in items" :key="c.id">
+            <tr v-for="c in sortedItems" :key="c.id">
               <td class="font-medium">{{ c.contractName || c.contractNo || `#${c.contractId}` }}</td>
               <td>{{ chargeCategoryText(c.category) }}</td>
               <td class="text-right tabular-nums">{{ Number(c.amount || 0).toLocaleString() }}</td>
@@ -43,7 +50,7 @@
                 </div>
               </td>
             </tr>
-            <tr v-if="items.length === 0"><td colspan="6" class="text-center text-base-content/50 py-10">查無應收費用資料。</td></tr>
+            <tr v-if="sortedItems.length === 0"><td colspan="6" class="text-center text-base-content/50 py-10">查無應收費用資料。</td></tr>
           </tbody>
         </table>
       </div>
@@ -85,7 +92,7 @@
   </div>
 </template>
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import AttachmentManager from '../components/AttachmentManager.vue'
@@ -100,6 +107,30 @@ const categoryFilter = ref(0)
 const paidFilter = ref<'all'|'paid'|'unpaid'>('unpaid')
 const items = ref<any[]>([])
 const contracts = ref<any[]>([])
+const sortKey = ref('')
+const sortDir = ref<'asc'|'desc'>('asc')
+const toggleSort = (key: string) => {
+  if (sortKey.value === key) { sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc' }
+  else { sortKey.value = key; sortDir.value = 'asc' }
+}
+const sortIndicator = (key: string) => sortKey.value === key ? (sortDir.value === 'asc' ? ' ▲' : ' ▼') : ''
+const sortValue = (c: any, key: string) => {
+  if (key === 'contract') return c.contractName || c.contractNo || `#${c.contractId}`
+  if (key === 'amount') return Number(c.amount || 0)
+  if (key === 'isPaid') return c.isPaid ? 1 : 0
+  if (key === 'occurredAtUtc') return c.occurredAtUtc || ''
+  return c[key] ?? ''
+}
+const sortedItems = computed(() => {
+  if (!sortKey.value) return items.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return [...items.value].sort((a, b) => {
+    const av = sortValue(a, sortKey.value)
+    const bv = sortValue(b, sortKey.value)
+    if (typeof av === 'number' && typeof bv === 'number') return (av - bv) * dir
+    return String(av).localeCompare(String(bv), 'zh-Hant', { numeric: true }) * dir
+  })
+})
 const error = ref('')
 const showModal = ref(false)
 const chargeCategoryOptions = [
