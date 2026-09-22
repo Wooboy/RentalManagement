@@ -48,7 +48,7 @@
         <table class="table">
           <thead><tr><th>分攤對象</th><th>租客/合約</th><th>房間</th><th>居住期間</th><th>入住天數</th><th>人數</th><th>天數×人數</th><th>起訖度數</th><th>用電度數</th><th>歸屬帳單</th></tr></thead>
           <tbody>
-            <tr v-for="(a, idx) in allocations" :key="`${a.expenseBillId}-${a.contractId}-${idx}`">
+            <tr v-for="(a, idx) in effectiveAllocations" :key="`${a.expenseBillId}-${a.contractId}-${idx}`">
               <td>{{ a.targetName }}</td>
               <td>{{ partyText(a) }}</td>
               <td>{{ a.propertyUnitName || '-' }} / {{ a.propertyRoomName || '-' }}</td>
@@ -95,11 +95,11 @@
         </div>
       </div>
 
-      <div v-if="result && allocations.length" class="overflow-x-auto mt-3">
+      <div v-if="result && effectiveAllocations.length" class="overflow-x-auto mt-3">
         <table class="table">
           <thead><tr><th>分攤對象</th><th>租客/合約</th><th>私電明細</th><th>公電明細</th><th>合計</th></tr></thead>
           <tbody>
-            <tr v-for="(a, idx) in allocations" :key="`detail-${a.expenseBillId}-${a.contractId}-${idx}`">
+            <tr v-for="(a, idx) in effectiveAllocations" :key="`detail-${a.expenseBillId}-${a.contractId}-${idx}`">
               <td>{{ a.targetName }}</td>
               <td>{{ partyText(a) }}</td>
               <td class="whitespace-pre-line">{{ a.calcDetail?.privateAmountText || '-' }}</td>
@@ -145,13 +145,24 @@ const billingDays = computed(() => {
   const end = new Date(`${billingEnd.value}T00:00:00Z`)
   return end < start ? 0 : Math.floor((end.getTime() - start.getTime()) / 86400000) + 1
 })
-const occupancyWeightTotal = computed(() => allocations.value.reduce((s:number, x:any) => s + Number(x.occupancyWeight || 0), 0))
+// 平均單價模式：同一房源的多張帳單（不同電號）會各自帶出同一套房間，抄表度數相同會重複，
+// 故依「分攤對象＋房間＋合約」去重，私電每房只算一次；金額與總度數仍以多張帳單加總計算平均單價。
+const effectiveAllocations = computed(() => {
+  if (calcMode.value !== 4) return allocations.value
+  const seen = new Map<string, any>()
+  for (const a of allocations.value) {
+    const key = `${a.targetType}-${a.propertyRoomId}-${a.contractId ?? 'x'}`
+    if (!seen.has(key)) seen.set(key, a)
+  }
+  return [...seen.values()]
+})
+const occupancyWeightTotal = computed(() => effectiveAllocations.value.reduce((s:number, x:any) => s + Number(x.occupancyWeight || 0), 0))
 const totalOccupants = computed(() => billingDays.value === 0 ? 0 : occupancyWeightTotal.value / billingDays.value)
 const totalOccupantsText = computed(() => round2(totalOccupants.value).toFixed(2))
-const landlordPayableTotal = computed(() => allocations.value
+const landlordPayableTotal = computed(() => effectiveAllocations.value
   .filter((x:any) => Number(x.targetType) === 2)
   .reduce((s:number, x:any) => s + Number(x.calcDetail?.payableAmount || 0), 0))
-const tenantPayableTotal = computed(() => allocations.value
+const tenantPayableTotal = computed(() => effectiveAllocations.value
   .filter((x:any) => Number(x.targetType) === 1)
   .reduce((s:number, x:any) => s + Number(x.calcDetail?.payableAmount || 0), 0))
 const publicUnitPriceText = computed(() => {
@@ -247,10 +258,11 @@ const toggleBill = async (bill: any) => {
 
   if (selectedBills.value.length > 0) {
     const first = selectedBills.value[0]
-    const samePeriod = first.billingStartUtc?.slice(0,10) === bill.billingStartUtc?.slice(0,10) &&
-      first.billingEndUtc?.slice(0,10) === bill.billingEndUtc?.slice(0,10)
-    if (!samePeriod) {
-      error.value = '多錶計算僅可選擇同期帳單'
+    const sameOccurred = first.occurredAtUtc?.slice(0,10) === bill.occurredAtUtc?.slice(0,10)
+    if (!sameOccurred) {
+      error.value = '多錶/平均單價計算僅可選擇相同發生日期的帳單'
+      // 重設陣列參照，強制 v-for 重繪，讓被擋下的勾選框回到未勾狀態（避免假勾造成誤會）
+      selectedExpenseBillIds.value = [...selectedExpenseBillIds.value]
       return
     }
   }
@@ -313,14 +325,15 @@ const calculate = async () => {
   }
 
   if (calcMode.value === 4) {
-    // 多錶平均單價：同一房源多張帳單加總金額與度數，取單一平均單價後再算各戶電費
+    // 多錶平均單價：同一房源多張帳單加總金額與度數，取單一平均單價後再算各戶電費（私電依房間去重，只算一次）
+    const rows = effectiveAllocations.value
     const unitPrice = aggregatedUnits.value === 0 ? 0 : round2(aggregatedAmount.value / aggregatedUnits.value)
-    const privateAmounts = allocations.value.map((x:any) => round2(Number(x.tenantUnits || 0) * unitPrice))
+    const privateAmounts = rows.map((x:any) => round2(Number(x.tenantUnits || 0) * unitPrice))
     const privateTotal = round2(privateAmounts.reduce((s:number,v:number)=>s+v,0))
     const publicTotal = round2(aggregatedAmount.value - privateTotal)
-    const divisor = allocations.value.reduce((s:number,x:any)=>s + Number(x.occupancyWeight || 0),0)
+    const divisor = rows.reduce((s:number,x:any)=>s + Number(x.occupancyWeight || 0),0)
     const averageDailyPrice = divisor === 0 ? 0 : round2(publicTotal / divisor)
-    const payables = allocations.value.map((x:any,idx:number) => {
+    const payables = rows.map((x:any,idx:number) => {
       const publicPart = round2(Number(x.occupancyWeight || 0) * averageDailyPrice)
       const payable = trunc0(privateAmounts[idx] + publicPart)
       x.calcDetail = {
@@ -378,7 +391,7 @@ const saveBill = async () => {
   await calculate()
   if (error.value) return
   try {
-    const primaryContractId = allocations.value.find((x:any) => Number(x.targetType) === 1 && x.contractId)?.contractId ?? null
+    const primaryContractId = effectiveAllocations.value.find((x:any) => Number(x.targetType) === 1 && x.contractId)?.contractId ?? null
     const { data } = await api.post('/electricity/bills', {
       contractId: primaryContractId,
       ruleType: calcMode.value,
@@ -387,7 +400,7 @@ const saveBill = async () => {
       totalAmount: aggregatedAmount.value,
       totalUnits: aggregatedUnits.value,
       unitPrice: aggregatedUnits.value === 0 ? 0 : aggregatedAmount.value / aggregatedUnits.value,
-      allocations: allocations.value.map((x: any) => ({
+      allocations: effectiveAllocations.value.map((x: any) => ({
         targetType: x.targetType,
         contractId: x.contractId,
         propertyRoomId: x.propertyRoomId,
