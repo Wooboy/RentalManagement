@@ -9,7 +9,7 @@
       </template>
     </PageHeader>
 
-    <div class="card bg-base-100 border border-base-300 shadow-sm p-3">
+    <div class="card bg-base-100 border border-base-300 shadow-sm p-3 sticky top-0 z-30">
       <div class="flex flex-wrap items-end gap-3">
         <label class="form-control"><span class="label-text mb-1">查詢起日</span><input v-model="startDate" class="input input-bordered input-sm" type="date" max="2099-12-31" /></label>
         <label class="form-control"><span class="label-text mb-1">查詢迄日</span><input v-model="endDate" class="input input-bordered input-sm" type="date" max="2099-12-31" /></label>
@@ -19,14 +19,17 @@
         <label class="form-control"><span class="label-text mb-1">收款狀態</span><select v-model="paidFilter" class="select select-bordered select-sm">
           <option value="all">全部</option><option value="paid">已收</option><option value="unpaid">未收</option>
         </select></label>
-        <button class="btn btn-sm btn-ghost" @click="search">查詢</button>
+        <button class="btn btn-sm btn-primary gap-1" @click="search">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+          查詢
+        </button>
       </div>
     </div>
 
     <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-      <div class="overflow-x-auto">
+      <div class="overflow-auto max-h-[calc(100dvh-15rem)]">
         <table class="table">
-          <thead><tr>
+          <thead><tr class="[&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-base-100">
             <th class="cursor-pointer select-none" @click="toggleSort('contract')">合約{{ sortIndicator('contract') }}</th>
             <th class="cursor-pointer select-none" @click="toggleSort('category')">類別{{ sortIndicator('category') }}</th>
             <th class="text-right cursor-pointer select-none" @click="toggleSort('amount')">金額{{ sortIndicator('amount') }}</th>
@@ -70,7 +73,7 @@
         <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
           <label class="form-control"><span class="label-text mb-1">合約 *</span><select v-model.number="form.contractId" class="select select-bordered">
             <option :value="0">選擇合約 *</option>
-            <option v-for="c in contracts" :key="c.id" :value="c.id">{{ c.contractName || c.propertyName || `#${c.id}` }}</option>
+            <option v-for="c in contractOptions" :key="c.id" :value="c.id">{{ c.contractName || c.propertyName || `#${c.id}` }}</option>
           </select></label>
           <label class="form-control"><span class="label-text mb-1">類別</span><select v-model.number="form.category" class="select select-bordered">
             <option v-for="option in chargeCategoryOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
@@ -153,6 +156,8 @@ const load = async()=>{
   items.value=data
 }
 const loadContracts = async()=>{ const {data}=await api.get('/contracts'); contracts.value=data }
+// 選擇合約只列出「生效中」(status===1) 的合約；編輯既有資料時保留目前所選合約（即使已終止）
+const contractOptions = computed(() => contracts.value.filter((c:any) => c.status === 1 || c.id === form.value.contractId))
 const applyQueryFilter = () => {
   const qStart = String(route.query.startDate ?? '')
   const qEnd = String(route.query.endDate ?? '')

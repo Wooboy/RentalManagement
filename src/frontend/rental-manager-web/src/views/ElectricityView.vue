@@ -1,122 +1,152 @@
 ﻿<template>
   <div class="space-y-4">
     <PageHeader title="電費試算" subtitle="選擇帳單並試算分攤後，儲存並轉入應收" />
-    <div class="card bg-base-100 border border-base-300 shadow-sm p-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
-        <label class="form-control"><span class="label-text mb-1">1. 計算方式</span>
-          <select v-model.number="calcMode" class="select select-bordered">
+    <div class="card bg-base-100 border border-base-300 shadow-sm">
+      <!-- 固定操作列：計算方式 + 試算/儲存 + 訊息（捲動時常駐最上方） -->
+      <div ref="toolbarEl" class="sticky top-0 z-30 bg-base-100 border-b border-base-300 rounded-t-2xl px-4 py-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <select v-model.number="calcMode" class="select select-bordered select-sm">
             <option :value="1">依度數計算</option>
             <option :value="3">多錶計算（各錶單價）</option>
             <option :value="4">多錶平均單價（多帳單加總）</option>
           </select>
-        </label>
-      </div>
-
-      <div class="overflow-x-auto mb-3">
-        <p class="text-sm mb-2">2. 選擇電費帳單（{{ calcMode === 1 ? '僅可單選' : '可多選' }}）</p>
-        <table class="table">
-          <thead><tr><th></th><th>發生日期</th><th>帳期</th><th>金額</th><th>度數</th><th>房源/房間</th></tr></thead>
-          <tbody>
-            <tr v-for="b in electricityExpenseBills" :key="b.id">
-              <td><input type="checkbox" class="checkbox checkbox-sm" :checked="selectedExpenseBillIds.includes(b.id)" @change="toggleBill(b)" /></td>
-              <td>{{ b.occurredAtUtc?.slice(0,10) || '-' }}</td>
-              <td>{{ b.billingStartUtc?.slice(0,10) }} ~ {{ b.billingEndUtc?.slice(0,10) }}</td>
-              <td>{{ b.amount }}</td>
-              <td>{{ b.usageUnits ?? '-' }}</td>
-              <td>{{ b.propertyUnitName || '-' }} / {{ b.propertyRoomName || '-' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-        <label class="form-control"><span class="label-text mb-1">帳期起日</span><input :value="billingStart" type="date" max="2099-12-31" class="input input-bordered" disabled /></label>
-        <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input :value="billingEnd" type="date" max="2099-12-31" class="input input-bordered" disabled /></label>
-        <label class="form-control"><span class="label-text mb-1">帳單總額（加總）</span><input :value="aggregatedAmount" type="number" class="input input-bordered" disabled /></label>
-        <label class="form-control"><span class="label-text mb-1">總度數（加總）</span><input :value="aggregatedUnits" type="number" class="input input-bordered" disabled /></label>
-      </div>
-
-      <div v-if="calcMode === 1" class="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-        <label class="form-control">
-          <span class="label-text mb-1">依度數計算單價（元/度）</span>
-          <input v-model.number="manualUnitPrice" type="number" class="input input-bordered" />
-        </label>
-      </div>
-
-      <div class="overflow-x-auto">
-        <p class="text-sm mb-2">3. 帳期內居住租客（依合約與抄表自動帶入）</p>
-        <table class="table">
-          <thead><tr><th>分攤對象</th><th>租客/合約</th><th>房間</th><th>居住期間</th><th>入住天數</th><th>人數</th><th>天數×人數</th><th>起訖度數</th><th>用電度數</th><th>歸屬帳單</th></tr></thead>
-          <tbody>
-            <tr v-for="(a, idx) in effectiveAllocations" :key="`${a.expenseBillId}-${a.contractId}-${idx}`">
-              <td>{{ a.targetName }}</td>
-              <td>{{ partyText(a) }}</td>
-              <td>{{ a.propertyUnitName || '-' }} / {{ a.propertyRoomName || '-' }}</td>
-              <td>{{ a.occupancyStartUtc?.slice(0,10) }} ~ {{ a.occupancyEndUtc?.slice(0,10) }}</td>
-              <td>{{ a.occupancyDays }}</td>
-              <td>{{ a.occupantCount }}</td>
-              <td>{{ a.occupancyWeight }}</td>
-              <td>{{ meterText(a) }}</td>
-              <td>{{ a.tenantUnits }}</td>
-              <td>#{{ a.expenseBillId }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-if="isPreviewLoading" class="mt-3 text-sm text-base-content/70">正在帶入合約與抄表資料...</div>
-      <div v-else-if="selectedExpenseBillIds.length && !allocations.length && !previewWarnings.length" class="mt-3 alert alert-warning text-sm">
-        <span>選取的帳單目前沒有帶入可計算的合約，請檢查合約房間、帳期，以及是否已有對應抄表資料。</span>
-      </div>
-
-      <div v-if="previewWarnings.length" class="mt-3 alert alert-warning text-sm whitespace-pre-line">
-        <div>
-          <div v-for="(warning, idx) in previewWarnings" :key="idx">{{ warning }}</div>
+          <button class="btn btn-primary btn-sm gap-1" @click="calculate">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75V18m-7.5-6.75h.008v.008H8.25v-.008Zm7.5 0h.008v.008h-.008v-.008ZM12 6.75h.008v.008H12V6.75Zm-3.75 0h.008v.008H8.25V6.75Zm7.5 0h.008v.008h-.008V6.75Zm-3.75 4.5h.008v.008H12v-.008Zm0 4.5h.008v.008H12V15.75ZM8.25 6h7.5V4.5A2.25 2.25 0 0 0 13.5 2.25h-3A2.25 2.25 0 0 0 8.25 4.5V6Z" /></svg>
+            試算
+          </button>
+          <button class="btn btn-secondary btn-sm" @click="saveBill">儲存帳單</button>
+          <span v-if="error" class="text-error text-sm">{{ error }}</span>
+          <span v-if="notice" class="text-success text-sm">{{ notice }}</span>
+          <span v-if="result" class="ml-auto text-sm tabular-nums text-base-content/80">
+            單價 <b>{{ result.unitPrice.toFixed(2) }}</b> ・ 應繳 <b>{{ result.payableAmount.toFixed(2) }}</b>
+          </span>
         </div>
       </div>
 
-      <div class="flex gap-2 mt-3">
-        <button class="btn btn-primary" @click="calculate">試算</button>
-        <button class="btn btn-secondary" @click="saveBill">儲存帳單</button>
-        <span class="text-error text-sm self-center">{{ error }}</span>
-        <span class="text-success text-sm self-center">{{ notice }}</span>
-      </div>
+      <div class="p-4 space-y-4">
+        <!-- 區塊 2：選擇電費帳單 -->
+        <section>
+          <h3 class="sticky z-20 bg-base-100 -mx-4 px-4 py-2 text-sm font-semibold border-b border-base-200" :style="{ top: toolbarTop }">2. 選擇電費帳單（{{ calcMode === 1 ? '僅可單選' : '可多選' }}）</h3>
+          <div class="overflow-x-auto mt-2">
+            <table class="table">
+              <thead><tr><th></th><th>發生日期</th><th>帳期</th><th>金額</th><th>度數</th><th>房源/房間</th></tr></thead>
+              <tbody>
+                <tr v-for="b in electricityExpenseBills" :key="b.id">
+                  <td><input type="checkbox" class="checkbox checkbox-sm" :checked="selectedExpenseBillIds.includes(b.id)" @change="toggleBill(b)" /></td>
+                  <td>{{ b.occurredAtUtc?.slice(0,10) || '-' }}</td>
+                  <td>{{ b.billingStartUtc?.slice(0,10) }} ~ {{ b.billingEndUtc?.slice(0,10) }}</td>
+                  <td>{{ b.amount }}</td>
+                  <td>{{ b.usageUnits ?? '-' }}</td>
+                  <td>{{ b.propertyUnitName || '-' }} / {{ b.propertyRoomName || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-      <div class="mt-3 text-sm" v-if="result">
-        <p>每度單價：{{ result.unitPrice.toFixed(2) }}</p>
-        <p>私電總額：{{ result.privateElectricityAmount.toFixed(2) }}</p>
-        <p>公電總額：{{ result.publicElectricityAmount.toFixed(2) }}</p>
-        <p>應繳總額：{{ result.payableAmount.toFixed(2) }}</p>
-        <p v-if="calcMode !== 1">租客應收總額：{{ trunc2(tenantPayableTotal).toFixed(2) }}</p>
-        <p v-if="calcMode !== 1">房東自付總額：{{ trunc2(landlordPayableTotal).toFixed(2) }}</p>
-        <div v-if="calcMode !== 1" class="mt-2 space-y-1">
-          <p>公電總額 {{ result.publicElectricityAmount.toFixed(2) }} = 應繳總額 {{ aggregatedAmount.toFixed(2) }} - 私電總額 {{ result.privateElectricityAmount.toFixed(2) }}</p>
-          <p>公電單價 {{ publicUnitPriceText }} = 公電總額 {{ result.publicElectricityAmount.toFixed(2) }} / (本期日數 {{ billingDays }} × 居住總人數 {{ totalOccupantsText }})</p>
-        </div>
-      </div>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-2 mt-3">
+            <label class="form-control"><span class="label-text mb-1">帳期起日</span><input :value="billingStart" type="date" max="2099-12-31" class="input input-bordered" disabled /></label>
+            <label class="form-control"><span class="label-text mb-1">帳期迄日</span><input :value="billingEnd" type="date" max="2099-12-31" class="input input-bordered" disabled /></label>
+            <label class="form-control"><span class="label-text mb-1">帳單總額（加總）</span><input :value="aggregatedAmount" type="number" class="input input-bordered" disabled /></label>
+            <label class="form-control"><span class="label-text mb-1">總度數（加總）</span><input :value="aggregatedUnits" type="number" class="input input-bordered" disabled /></label>
+          </div>
 
-      <div v-if="result && effectiveAllocations.length" class="overflow-x-auto mt-3">
-        <table class="table">
-          <thead><tr><th>分攤對象</th><th>租客/合約</th><th>私電明細</th><th>公電明細</th><th>合計</th></tr></thead>
-          <tbody>
-            <tr v-for="(a, idx) in effectiveAllocations" :key="`detail-${a.expenseBillId}-${a.contractId}-${idx}`">
-              <td>{{ a.targetName }}</td>
-              <td>{{ partyText(a) }}</td>
-              <td class="whitespace-pre-line">{{ a.calcDetail?.privateAmountText || '-' }}</td>
-              <td>{{ a.calcDetail?.publicAmountText || '-' }}</td>
-              <td>{{ a.calcDetail?.totalText || '-' }}</td>
-            </tr>
-          </tbody>
-        </table>
+          <div v-if="calcMode === 1" class="grid grid-cols-1 md:grid-cols-4 gap-2 mt-2">
+            <label class="form-control">
+              <span class="label-text mb-1">依度數計算單價（元/度）</span>
+              <input v-model.number="manualUnitPrice" type="number" class="input input-bordered" />
+            </label>
+          </div>
+        </section>
+
+        <!-- 區塊 3：帳期內居住租客 -->
+        <section>
+          <h3 class="sticky z-20 bg-base-100 -mx-4 px-4 py-2 text-sm font-semibold border-b border-base-200" :style="{ top: toolbarTop }">3. 帳期內居住租客（依合約與抄表自動帶入）</h3>
+          <div class="overflow-x-auto mt-2">
+            <table class="table">
+              <thead><tr><th>分攤對象</th><th>租客/合約</th><th>房間</th><th>居住期間</th><th>入住天數</th><th>人數</th><th>天數×人數</th><th>起訖度數</th><th>用電度數</th><th>歸屬帳單</th></tr></thead>
+              <tbody>
+                <tr v-for="(a, idx) in effectiveAllocations" :key="`${a.expenseBillId}-${a.contractId}-${idx}`">
+                  <td>{{ a.targetName }}</td>
+                  <td>{{ partyText(a) }}</td>
+                  <td>{{ a.propertyUnitName || '-' }} / {{ a.propertyRoomName || '-' }}</td>
+                  <td>{{ a.occupancyStartUtc?.slice(0,10) }} ~ {{ a.occupancyEndUtc?.slice(0,10) }}</td>
+                  <td>{{ a.occupancyDays }}</td>
+                  <td>{{ a.occupantCount }}</td>
+                  <td>{{ a.occupancyWeight }}</td>
+                  <td>{{ meterText(a) }}</td>
+                  <td>{{ a.tenantUnits }}</td>
+                  <td>#{{ a.expenseBillId }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="isPreviewLoading" class="mt-3 text-sm text-base-content/70">正在帶入合約與抄表資料...</div>
+          <div v-else-if="selectedExpenseBillIds.length && !allocations.length && !previewWarnings.length" class="mt-3 alert alert-warning text-sm">
+            <span>選取的帳單目前沒有帶入可計算的合約，請檢查合約房間、帳期，以及是否已有對應抄表資料。</span>
+          </div>
+
+          <div v-if="previewWarnings.length" class="mt-3 alert alert-warning text-sm whitespace-pre-line">
+            <div>
+              <div v-for="(warning, idx) in previewWarnings" :key="idx">{{ warning }}</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 區塊：試算結果 -->
+        <section v-if="result">
+          <h3 class="sticky z-20 bg-base-100 -mx-4 px-4 py-2 text-sm font-semibold border-b border-base-200" :style="{ top: toolbarTop }">試算結果</h3>
+          <div class="mt-2 text-sm">
+            <p>每度單價：{{ result.unitPrice.toFixed(2) }}</p>
+            <p>私電總額：{{ result.privateElectricityAmount.toFixed(2) }}</p>
+            <p>公電總額：{{ result.publicElectricityAmount.toFixed(2) }}</p>
+            <p>應繳總額：{{ result.payableAmount.toFixed(2) }}</p>
+            <p v-if="calcMode !== 1">租客應收總額：{{ trunc2(tenantPayableTotal).toFixed(2) }}</p>
+            <p v-if="calcMode !== 1">房東自付總額：{{ trunc2(landlordPayableTotal).toFixed(2) }}</p>
+            <div v-if="calcMode !== 1" class="mt-2 space-y-1">
+              <p>公電總額 {{ result.publicElectricityAmount.toFixed(2) }} = 應繳總額 {{ aggregatedAmount.toFixed(2) }} - 私電總額 {{ result.privateElectricityAmount.toFixed(2) }}</p>
+              <p>公電單價 {{ publicUnitPriceText }} = 公電總額 {{ result.publicElectricityAmount.toFixed(2) }} / (本期日數 {{ billingDays }} × 居住總人數 {{ totalOccupantsText }})</p>
+            </div>
+          </div>
+
+          <div v-if="effectiveAllocations.length" class="overflow-x-auto mt-3">
+            <table class="table">
+              <thead><tr><th>分攤對象</th><th>租客/合約</th><th>私電明細</th><th>公電明細</th><th>合計</th></tr></thead>
+              <tbody>
+                <tr v-for="(a, idx) in effectiveAllocations" :key="`detail-${a.expenseBillId}-${a.contractId}-${idx}`">
+                  <td>{{ a.targetName }}</td>
+                  <td>{{ partyText(a) }}</td>
+                  <td class="whitespace-pre-line">{{ a.calcDetail?.privateAmountText || '-' }}</td>
+                  <td>{{ a.calcDetail?.publicAmountText || '-' }}</td>
+                  <td>{{ a.calcDetail?.totalText || '-' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import api from '../services/api'
 import PageHeader from '../components/PageHeader.vue'
+
+// 量測固定操作列高度，讓各區塊標題（scroll spy）緊貼在操作列下方
+const toolbarEl = ref<HTMLElement | null>(null)
+const toolbarHeight = ref(0)
+const toolbarTop = computed(() => `${toolbarHeight.value}px`)
+let toolbarResizeObserver: ResizeObserver | null = null
+onMounted(() => {
+  if (!toolbarEl.value) return
+  const update = () => { toolbarHeight.value = toolbarEl.value?.offsetHeight ?? 0 }
+  update()
+  toolbarResizeObserver = new ResizeObserver(update)
+  toolbarResizeObserver.observe(toolbarEl.value)
+})
+onBeforeUnmount(() => toolbarResizeObserver?.disconnect())
 
 const calcMode = ref(3)
 const selectedExpenseBillIds = ref<number[]>([])

@@ -9,7 +9,7 @@
       </template>
     </PageHeader>
 
-    <div class="card bg-base-100 border border-base-300 shadow-sm p-3">
+    <div class="card bg-base-100 border border-base-300 shadow-sm p-3 sticky top-0 z-30">
       <div class="flex flex-wrap items-end gap-3">
         <label class="form-control"><span class="label-text mb-1">查詢起日</span><input v-model="searchStartDate" class="input input-bordered input-sm" type="date" max="2099-12-31" /></label>
         <label class="form-control"><span class="label-text mb-1">查詢迄日</span><input v-model="searchEndDate" class="input input-bordered input-sm" type="date" max="2099-12-31" /></label>
@@ -29,14 +29,17 @@
             <option :value="3">無需分帳</option>
           </select>
         </label>
-        <button class="btn btn-sm btn-ghost" @click="search">查詢</button>
+        <button class="btn btn-sm btn-primary gap-1" @click="search">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+          查詢
+        </button>
       </div>
     </div>
 
     <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-      <div class="overflow-x-auto">
+      <div class="overflow-auto max-h-[calc(100dvh-15rem)]">
         <table class="table">
-          <thead><tr>
+          <thead><tr class="[&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-base-100">
             <th class="cursor-pointer select-none" @click="toggleSort('property')">房源{{ sortIndicator('property') }}</th>
             <th class="cursor-pointer select-none" @click="toggleSort('room')">房間{{ sortIndicator('room') }}</th>
             <th class="cursor-pointer select-none" @click="toggleSort('category')">類別{{ sortIndicator('category') }}</th>

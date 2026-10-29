@@ -9,7 +9,7 @@
       </template>
     </PageHeader>
 
-    <div class="card bg-base-100 border border-base-300 shadow-sm p-3">
+    <div class="card bg-base-100 border border-base-300 shadow-sm p-3 sticky top-0 z-30">
       <div class="flex flex-wrap items-end gap-3">
         <label class="form-control">
           <span class="label-text mb-1">搜尋關鍵字</span>
@@ -23,7 +23,10 @@
             <option value="3">已終止</option>
           </select>
         </label>
-        <button class="btn btn-sm btn-ghost" @click="load">查詢</button>
+        <button class="btn btn-sm btn-primary gap-1" @click="load">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" /></svg>
+          查詢
+        </button>
         <div class="flex-1"></div>
         <button class="btn btn-sm btn-secondary" :disabled="!selectedContractIds.length" @click="openChargeMonthModal">
           建立本期應收<span v-if="selectedContractIds.length" class="ml-1">（{{ selectedContractIds.length }}）</span>
@@ -35,13 +38,13 @@
     <p v-if="notice" class="text-success text-sm">{{ notice }}</p>
 
     <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-      <div class="overflow-x-auto">
+      <div class="overflow-auto max-h-[calc(100dvh-16rem)]">
         <table class="table">
-          <thead><tr><th><input type="checkbox" class="checkbox checkbox-sm" :checked="allVisibleSelected" @change="toggleAllVisible" /></th><th>合約名稱</th><th>租客</th><th>房源/房間</th><th>合約起日</th><th>合約迄日</th><th class="text-right">月租</th><th>付款間隔</th><th class="text-right">每期應付</th><th>備註</th><th class="text-right">操作</th></tr></thead>
+          <thead><tr class="[&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-base-100"><th><input type="checkbox" class="checkbox checkbox-sm" :checked="allVisibleSelected" @change="toggleAllVisible" /></th><th>合約狀態</th><th>租客</th><th>房源/房間</th><th>合約起日</th><th>合約迄日</th><th class="text-right">月租</th><th>付款間隔</th><th class="text-right">每期應付</th><th>備註</th><th class="text-right">操作</th></tr></thead>
           <tbody>
             <tr v-for="c in items" :key="c.id">
               <td><input type="checkbox" class="checkbox checkbox-sm" :value="c.id" v-model="selectedContractIds" /></td>
-              <td class="font-medium">{{ c.contractName }}</td><td>{{ c.tenant?.name }}</td><td>{{ c.propertyName }}</td><td class="tabular-nums">{{ c.startDateUtc?.slice(0,10) }}</td><td class="tabular-nums">{{ c.endDateUtc?.slice(0,10) }}</td><td class="text-right tabular-nums">{{ Number(c.monthlyRent || 0).toLocaleString() }}</td><td>{{ paymentIntervalText(c.paymentIntervalMonths) }}</td><td class="text-right tabular-nums">{{ Number(c.periodPayableAmount || 0).toLocaleString() }}</td><td class="max-w-40 truncate text-base-content/70">{{ c.notes || '-' }}</td>
+              <td><span class="badge badge-sm" :class="c.status === 3 ? 'badge-ghost' : 'badge-success badge-soft'">{{ statusText(c.status) }}</span></td><td>{{ c.tenant?.name }}</td><td>{{ c.propertyName }}</td><td class="tabular-nums">{{ c.startDateUtc?.slice(0,10) }}</td><td class="tabular-nums">{{ c.endDateUtc?.slice(0,10) }}</td><td class="text-right tabular-nums">{{ Number(c.monthlyRent || 0).toLocaleString() }}</td><td>{{ paymentIntervalText(c.paymentIntervalMonths) }}</td><td class="text-right tabular-nums">{{ Number(c.periodPayableAmount || 0).toLocaleString() }}</td><td class="max-w-40 truncate text-base-content/70">{{ c.notes || '-' }}</td>
               <td>
                 <div class="flex gap-1 justify-end">
                   <button class="btn btn-xs btn-ghost" @click="openAttachments(c)">附件</button>
@@ -167,6 +170,7 @@ const groupedRooms = computed(() => {
   return Array.from(groups.values())
 })
 const paymentIntervalText = (m:number)=> m===12 ? '每年' : m===3 ? '每季' : '每月'
+const statusText = (s:number)=> s===3 ? '已終止' : '生效中'
 const load = async()=>{
   notice.value = ''
   const params:any = { keyword: keyword.value || undefined }

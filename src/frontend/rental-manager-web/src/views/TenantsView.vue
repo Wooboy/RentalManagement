@@ -19,9 +19,9 @@
     </PageHeader>
 
     <div class="card bg-base-100 border border-base-300 shadow-sm overflow-hidden">
-      <div class="overflow-x-auto">
+      <div class="overflow-auto max-h-[calc(100dvh-12rem)]">
         <table class="table">
-          <thead><tr><th>姓名</th><th>電話</th><th>生日</th><th>統編</th><th>備註</th><th class="text-right">操作</th></tr></thead>
+          <thead><tr class="[&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:bg-base-100"><th>姓名</th><th>電話</th><th>生日</th><th>統編</th><th>備註</th><th class="text-right">操作</th></tr></thead>
           <tbody>
             <tr v-for="t in items" :key="t.id">
               <td class="font-medium">{{ t.name }}</td><td>{{ t.phone || '-' }}</td><td>{{ t.birthdayUtc?.slice(0,10) || '-' }}</td><td>{{ t.taxId || '-' }}</td><td class="max-w-60 truncate text-base-content/70">{{ t.notes || '-' }}</td>
