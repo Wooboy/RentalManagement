@@ -1,0 +1,6 @@
+# 部署到 Linux 主機的設定檔固定 LF（systemd EnvironmentFile 遇 CRLF 會把 \r 帶進值）
+build/systemd/** text eol=lf
+build/nginx/** text eol=lf
+*.sh text eol=lf
+# PowerShell 腳本維持 CRLF（Windows PowerShell 5.1）
+*.ps1 text eol=crlf

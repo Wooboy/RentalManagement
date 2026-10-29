@@ -25,7 +25,7 @@
       "request": "launch",
       "preLaunchTask": "frontend: dev",
       "url": "http://localhost:5173",
-      "webRoot": "${workspaceFolder}/src/frontend/rental-manager-web",
+      "webRoot": "${workspaceFolder}/src/frontend",
       "sourceMaps": true
     }
   ],

@@ -6,7 +6,7 @@
       "type": "shell",
       "command": "npm install",
       "options": {
-        "cwd": "${workspaceFolder}/src/frontend/rental-manager-web"
+        "cwd": "${workspaceFolder}/src/frontend"
       },
       "problemMatcher": []
     },
@@ -15,7 +15,7 @@
       "type": "shell",
       "command": "npm run dev",
       "options": {
-        "cwd": "${workspaceFolder}/src/frontend/rental-manager-web"
+        "cwd": "${workspaceFolder}/src/frontend"
       },
       "isBackground": true,
       "problemMatcher": {
@@ -35,7 +35,7 @@
       "type": "shell",
       "command": "npm run build",
       "options": {
-        "cwd": "${workspaceFolder}/src/frontend/rental-manager-web"
+        "cwd": "${workspaceFolder}/src/frontend"
       },
       "group": "build",
       "problemMatcher": []
@@ -118,6 +118,65 @@
         "frontend: dev"
       ],
       "dependsOrder": "parallel"
+    },
+    {
+      "label": "backend: test",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "${workspaceFolder}/tests/RentalManager.Api.Tests/RentalManager.Api.Tests.csproj"
+      ],
+      "group": "test",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build: deploy",
+      "detail": "build/build-deploy.ps1 → build/server-backend + build/server-frontend",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/build/build-deploy.ps1"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build: deploy backend",
+      "detail": "build/build-backend.ps1 → build/server-backend",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/build/build-backend.ps1"
+      ],
+      "group": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build: deploy frontend",
+      "detail": "build/build-frontend.ps1 → build/server-frontend",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/build/build-frontend.ps1"
+      ],
+      "group": "build",
+      "problemMatcher": []
     }
   ]
 }

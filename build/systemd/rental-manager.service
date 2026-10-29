@@ -1,0 +1,40 @@
+# 租屋管理系統 API（ASP.NET Core / Kestrel）
+# 部署步驟與目錄權限：docs/DEPLOYMENT_UBUNTU.md
+
+[Unit]
+Description=Rental Manager API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=rentalmgr
+Group=rentalmgr
+WorkingDirectory=/opt/RentalManager/backend
+ExecStart=/usr/bin/dotnet /opt/RentalManager/backend/RentalManager.Api.dll
+EnvironmentFile=/opt/RentalManager/config/rental-manager-api.env
+Environment=HOME=/opt/RentalManager
+Environment=DOTNET_NOLOGO=1
+Environment=DOTNET_CLI_TELEMETRY_OPTOUT=1
+
+Restart=always
+RestartSec=10
+# Kestrel 以 SIGINT 進行優雅關閉
+KillSignal=SIGINT
+TimeoutStopSec=30
+SyslogIdentifier=rental-manager
+
+# ── 強化：除 data/（附件上傳）外整個檔案系統唯讀，程式與設定皆不可被服務改寫 ──
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/RentalManager/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

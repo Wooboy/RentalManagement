@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\RentalManager.Api\RentalManager.Api.csproj" />
+    <ProjectReference Include="..\..\src\backend\RentalManager.Api\RentalManager.Api.csproj" />
   </ItemGroup>
 
 </Project>

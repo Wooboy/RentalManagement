@@ -11,7 +11,7 @@
 - 架構：Controller（薄）→ Service（業務邏輯）→ EF Core；DTO 依領域拆分；錯誤統一 ProblemDetails
 - 啟動：
   - `dotnet run`
-- 測試：
+- 測試：`tests/RentalManager.Api.Tests`
   - `dotnet test src/backend/RentalManager.slnx`
 - OpenAPI（開發環境）：`GET /openapi/v1.json`
 - 連線字串：
@@ -19,17 +19,17 @@
   - 本機開發：`src/backend/RentalManager.Api/appsettings.Development.json`
 - Migration：
   - 新增：`dotnet ef migrations add <Name>`
-  - 套用：`dotnet ef database update`（API 啟動時也會自動套用）
+  - 套用：`dotnet ef database update`（開發環境 API 啟動時也會自動套用；正式環境不自動，見部署文件）
 - 種子資料：
   - 匯出目前資料庫成範本：`dotnet run -- --export-seed Seed/seed-template.json`
   - 啟動時若資料庫為空，會自動套用 `Seed/seed-template.json`
 - 附件儲存：
   - 設定 `Storage:Root`（預設 `App_Data/uploads`）、`Storage:MaxFileSizeMB`（預設 10）
-  - Docker 部署掛載 volume `uploads_data`
+  - 正式環境為 `/opt/RentalManager/data/uploads`
 - 預設管理者：帳號 `admin` / 密碼 `admin123`（正式環境請立即修改）
 
 ## 前端（Vue 3 + Pinia + DaisyUI）
-- 路徑：`src/frontend/rental-manager-web`
+- 路徑：`src/frontend`
 - 啟動：
   - `npm install`
   - `npm run dev`（dev server 會將 `/api` 代理到 `http://localhost:5091`）
@@ -47,48 +47,12 @@
 - 管理端（AdminOnly）：`/api/tenants`、`/api/properties`、`/api/rooms`、`/api/contracts`、`/api/charges`、`/api/expenses`、`/api/electricity/*`、`/api/electricity-meter-readings`、`/api/reports/monthly`、`/api/users`、`/api/attachments`、`/api/repair-tickets`
 - 房客端（TenantOnly）：`/api/portal/contracts`、`/api/portal/charges`、`/api/portal/repair-tickets`、`/api/portal/attachments`
 
-## Docker Compose 部署（Synology NAS）
-- 資料庫（PostgreSQL）**自行管理，不包含在本 compose 內**；只部署 `api` 與 `web` 兩個容器，透過 `.env` 的 `DB_HOST` 等設定連到外部 DB。
-- 單一 `build/` 資料夾同時是「部署設定來源」與「建置產物輸出」：
-  - 追蹤的設定來源：
-    - `build/docker-compose.yml`（`api` + `web`；uploads 用 `./data/uploads` bind mount）
-    - `build/.env.example`
-    - `build/docker/api-runtime.Dockerfile`
-    - `build/docker/web-runtime.Dockerfile`
-    - `build/nginx.conf`（`client_max_body_size 20m`，附件上傳用）
-  - 由 `scripts/publish-local.ps1` 產生（已 gitignore）：`build/api/`、`build/web/`、`build/seed/`
-- 部署模式：
-  - 本機先 build 前端與後端，成品直接輸出到 `build/`
-  - Docker 只打包執行成品，不在容器內編譯
-- 前端容器透過 `nginx` 代理 `/api` 到後端容器。
+## 部署（Ubuntu：WAF + nginx + systemd）
+完整步驟見 `docs/DEPLOYMENT_UBUNTU.md`。
 
-### 本機先測試
-1. 產出部署成品：`powershell -ExecutionPolicy Bypass -File .\scripts\publish-local.ps1`
-2. 複製環境檔：`Copy-Item .\build\.env.example .\build\.env`
-3. 至少修改 `.env` 內的：
-   - `DB_HOST`（外部資料庫位址；DB 也在本機時，Docker 內不能用 `localhost`，需填主機區網 IP）
-   - `DB_PASSWORD`
-   - `JWT_KEY`
-   - 資料庫需先建好（`DB_NAME` 對應的 database 與 `DB_USER`），API 啟動時會自動套用 migration 建表
-4. 啟動：
-   - `cd .\build`
-   - `docker compose up -d --build`
-5. 開啟：`http://localhost:8080`
-
-### Synology NAS 部署
-1. 在本機執行 `scripts/publish-local.ps1` 產出 `build/`
-2. 將整個 `build/` 目錄放到 NAS，例如 `/volume1/docker/rental-manager`
-3. 在 NAS 上將 `.env.example` 複製成 `.env`，填入正式值
-4. 用 Synology Container Manager 以 `build/docker-compose.yml` 建立專案
-5. 啟動後，從 `http://NAS_IP:8080` 存取
-
-### 更新流程
-1. 本機修改程式後重新執行 `scripts/publish-local.ps1`
-2. 把新的 `build/` 覆蓋到 NAS
-3. Container Manager 重新部署
-4. **注意**：更新內含 DB migration 時，API 啟動會自動套用；`data/uploads` 與外部資料庫不會因重建容器而清空
-
-### 建議
-- 正式網域請用 Synology Reverse Proxy 導到 `web` 對外埠
-- `Seed/seed-template.json` 掛載到 API 容器，資料庫為空時自動初始化
-- 附件實體檔存於 `data/uploads`，備份時請連同外部資料庫一起備份
+- 本機建置：`.uilduild-deploy.ps1`（或 VS Code 預設建置工作 `build: deploy`）
+  - 後端 → `build/server-backend/`（含 `db_migration/` 冪等 SQL）
+  - 前端 → `build/server-frontend/`
+- 部署設定來源：`build/systemd/`（服務與環境變數範本）、`build/nginx/nginx.conf`
+- 資料庫（PostgreSQL）自行管理；正式環境**不會**自動 migrate，更新後端前先套用 `db_migration/` 腳本
+- 備份：外部資料庫 + `/opt/RentalManager/data/uploads`

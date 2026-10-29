@@ -21,12 +21,14 @@ Thumbs.db
 
 tmp/
 
-# 部署 build 產物與執行期資料（build/ 內的設定檔仍為追蹤來源）
-/build/api/
-/build/web/
-/build/seed/
-/build/data/
+# 部署 build 產物（build-deploy.ps1 產生）與執行期機密
+# build/nginx、build/systemd 與 build-*.ps1 為追蹤的部署設定來源（說明見 docs/DEPLOYMENT_UBUNTU.md）
+/build/server-backend/
+/build/server-frontend/
+/build/systemd/*.env
+# 舊 Docker 部署留下的本機機密與種子資料（保留不追蹤）
 /build/.env
+/build/seed/
 
 src/backend/RentalManager.Api/appsettings.Development.json
 src/backend/RentalManager.Api/Seed/seed-template.json

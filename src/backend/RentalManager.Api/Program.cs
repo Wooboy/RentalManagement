@@ -67,7 +67,8 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     var seedService = scope.ServiceProvider.GetRequiredService<DbSeedService>();
-    db.Database.Migrate();
+    // 只有開發環境自動 migrate；正式環境以建置產出的 db_migration/*.idempotent.sql 另行套用
+    if (app.Environment.IsDevelopment()) db.Database.Migrate();
 
     var exportSeedPath = args.SkipWhile(x => x != "--export-seed").Skip(1).FirstOrDefault();
     if (args.Contains("--export-seed"))
@@ -91,4 +92,6 @@ app.UseCors("frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+// 部署健康檢查（nginx / systemd 確認用）
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.Run();
